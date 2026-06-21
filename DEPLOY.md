@@ -51,6 +51,34 @@ Officer → Live Monitor → CCTV Mode → paste your phone's **IP Webcam** URL
 (`http://<phone-ip>:8080/video`, same Wi-Fi). "Live View" shows the feed; "Run AI Detection"
 runs the pipeline on it. Keep the backend **local** for this (cloud can't reach your phone's LAN IP).
 
+## Live AI inference on the deployed site (IMPORTANT)
+The 6 detection models (232 MB) **are committed** in `drishti/models/`, so any clone has them.
+But running all 6 YOLO11m models needs **≈2–4 GB RAM** — the **free Render tier (512 MB) will
+OOM-crash**. So choose one:
+
+- **Best for a live examiner demo — local backend + tunnel:**
+  ```bash
+  # on your PC (has the models + a GPU): from drishti/
+  python -m uvicorn api.main:app --host 0.0.0.0 --port 8000
+  # expose it publicly (no install: download cloudflared.exe)
+  cloudflared tunnel --url http://localhost:8000
+  ```
+  Copy the printed `https://xxxx.trycloudflare.com` URL into Vercel's `VITE_API_URL`
+  and redeploy. The deployed site now does **real detection on any uploaded image**, on your GPU.
+
+- **All-cloud with real inference:** use a paid instance with ≥2 GB RAM (e.g. Render Standard)
+  or a GPU host. CPU inference works but is slow (~seconds/frame).
+
+- **Free cloud (no live inference):** the site still fully works — seeded challans, evidence
+  photos, analytics, maps, outbox, DrishtiBot — just upload/live-camera detection is disabled.
+
+**Easiest of all:** the examiner can clone the repo and run it locally —
+models are included, so `pip install -r drishti/requirements.txt` + run = real detection.
+
+## Test images
+`test-images/` holds 15 ready-to-upload samples (two-wheeler + vehicle scenes) for the examiner
+to drop into Live Monitor → Field Upload → Analyse.
+
 ## Notes
 - Email target = owner's email from the simulated VAHAN registry record.
 - Models (`drishti/models/*.pt`) + datasets are gitignored. Copy them onto the machine that runs
