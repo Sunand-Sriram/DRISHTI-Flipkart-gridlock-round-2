@@ -136,10 +136,14 @@ def main(n=220):
             "INSERT INTO emergencies (id,vehicle,camera,location,lat,lng,checkpost,officer,status,created_at) "
             "VALUES (?,?,?,?,?,?,?,?,'resolved',?)", (*e, now - random.randint(3600, 7200)))
     conn.commit(); conn.close()
-    # notifications AFTER the emergency transaction is committed (avoid WAL lock)
+    # notifications AFTER the emergency transaction is committed (avoid WAL lock).
+    # Each active emergency AUTOMATICALLY dispatches a green-corridor alert to its checkpost.
     for e in ems:
         db.add_notification("officer", "emergency", f"{e[1].title()} detected at {e[3]}",
-                            f"Green corridor relayed to {e[6]} ({e[7]}).", "/officer/emergencies")
+                            f"Auto-dispatched to {e[6]} ({e[7]}).", "/officer/emergencies")
+        db.add_notification(f"cp:{e[6]}", "dispatch", f"🚨 {e[1].title()} inbound — clear the lane",
+                            f"Auto green corridor from {e[2]} ({e[3]}). ETA ~2 min. Officer {e[7]}.",
+                            "/officer/cameras")
     db.log(f"Seeded {n} demo challans + {len(ems)} active emergencies", "System")
     # auto-email the demo challans so the officer Outbox is pre-populated
     from . import mailer

@@ -15,6 +15,7 @@ function timeAgo(ts: number) {
 export default function Outbox() {
   const [items, setItems] = useState<OutboxEntry[]>([])
   const [sel, setSel] = useState<OutboxEntry | null>(null)
+  const [html, setHtml] = useState<string>('')
   const [loading, setLoading] = useState(true)
 
   function load() {
@@ -26,6 +27,16 @@ export default function Outbox() {
     }).catch(() => setLoading(false))
   }
   useEffect(load, [])
+
+  // fetch the selected email's HTML and render it inert (sandboxed, links open in a new tab)
+  useEffect(() => {
+    if (!sel) { setHtml(''); return }
+    setHtml('')
+    fetch(api.outboxViewUrl(sel.name))
+      .then((r) => r.text())
+      .then((t) => setHtml(t.replace('<head>', '<head><base target="_blank">')))
+      .catch(() => setHtml('<p style="font-family:sans-serif;padding:24px">Could not load this email.</p>'))
+  }, [sel])
 
   return (
     <div className="space-y-6">
@@ -86,7 +97,8 @@ export default function Outbox() {
                 </div>
                 <iframe
                   title="email-preview"
-                  src={api.outboxViewUrl(sel.name)}
+                  srcDoc={html}
+                  sandbox="allow-popups allow-popups-to-escape-sandbox"
                   className="h-[64vh] w-full bg-white"
                 />
               </>

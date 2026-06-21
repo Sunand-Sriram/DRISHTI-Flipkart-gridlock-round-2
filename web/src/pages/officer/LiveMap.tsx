@@ -19,7 +19,9 @@ export default function LiveMap() {
 
   const futureTime = new Date(Date.now() + offset * 60000)
 
-  // build map markers from the toggled layers
+  // build map markers from the toggled layers. Cameras, checkposts and emergencies
+  // often share the exact junction coords, so we nudge each layer a few metres
+  // apart (≈0.0009° ≈ 100 m) so they don't stack and hide one another.
   const markers: MapMarker[] = []
   if (layers.cameras)
     mockCameras.forEach((c) => markers.push({
@@ -28,7 +30,8 @@ export default function LiveMap() {
     }))
   if (layers.checkposts)
     (checkposts ?? []).forEach((c) => markers.push({
-      lat: c.lat, lng: c.lng, label: c.name, sub: `Officer: ${c.officer}`, color: '#2d5bff', radius: 8,
+      lat: c.lat + 0.0009, lng: c.lng - 0.0009, label: `🚔 ${c.name}`, sub: `Officer: ${c.officer}`,
+      color: '#2d5bff', radius: 8,
     }))
   if (layers.hotspots)
     hotspots.forEach((h) => markers.push({
@@ -37,7 +40,7 @@ export default function LiveMap() {
     }))
   if (layers.emergencies)
     (emergencies ?? []).forEach((e) => markers.push({
-      lat: e.lat, lng: e.lng, label: `🚨 ${e.vehicle}`, sub: `${e.location} → ${e.checkpost}`,
+      lat: e.lat - 0.0009, lng: e.lng + 0.0009, label: `🚨 ${e.vehicle}`, sub: `${e.location} → ${e.checkpost}`,
       color: '#fbbf24', radius: 11,
     }))
 

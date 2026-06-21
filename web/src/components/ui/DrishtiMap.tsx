@@ -1,5 +1,24 @@
-import { CircleMarker, MapContainer, Popup, TileLayer, Tooltip } from 'react-leaflet'
+import { useEffect } from 'react'
+import { CircleMarker, MapContainer, Popup, TileLayer, Tooltip, useMap } from 'react-leaflet'
+import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
+
+/** Fixes the classic Leaflet "renders before container is sized" bug and
+ *  auto-fits the view to all markers so none are off-screen. */
+function MapReady({ markers }: { markers: MapMarker[] }) {
+  const map = useMap()
+  useEffect(() => {
+    const t = setTimeout(() => {
+      map.invalidateSize()
+      if (markers.length > 1) {
+        const b = L.latLngBounds(markers.map((m) => [m.lat, m.lng] as [number, number]))
+        map.fitBounds(b, { padding: [40, 40], maxZoom: 14 })
+      }
+    }, 200)
+    return () => clearTimeout(t)
+  }, [map, markers])
+  return null
+}
 
 export interface MapMarker {
   lat: number
@@ -31,6 +50,7 @@ export function DrishtiMap({ markers, center, zoom = 12, height = 480, dark = tr
   return (
     <div className={className} style={{ height, width: '100%', borderRadius: 16, overflow: 'hidden' }}>
       <MapContainer center={c} zoom={zoom} style={{ height: '100%', width: '100%' }} scrollWheelZoom>
+        <MapReady markers={markers} />
         <TileLayer
           url={tiles}
           attribution='&copy; OpenStreetMap &copy; CARTO'

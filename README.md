@@ -54,4 +54,11 @@ challan & payment history, notifications, help.
 Email: every issued challan is auto-emailed to the owner (VAHAN-registered address) and
 recorded in the Officer → Email Outbox. Set SMTP env vars to send for real (see DEPLOY.md).
 
-See **DEPLOY.md** for cloud deployment (Vercel + Render).
+## ⚠️ Live inference — prototype note
+This is a **prototype**: **live AI inference (video / image / phone-camera upload) runs LOCALLY**
+on the demo machine's GPU — it is **not cloud-hosted** in this build. The six YOLO11m models
+need ~2–4 GB RAM and a GPU for real-time speed, which free cloud tiers don't provide.
+**In the final deployment, real-time inference will be hosted on a GPU server.** Everything else
+(challans, evidence, analytics, maps, email/outbox, DrishtiBot) runs fully on the cloud now.
+See **model-results/** for each detector's training graphs and metrics, and **DEPLOY.md** for
+cloud deployment (Vercel + Render) and the local-inference tunnel recipe.

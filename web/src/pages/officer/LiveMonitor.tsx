@@ -69,6 +69,13 @@ export default function LiveMonitor() {
 
   return (
     <div className="space-y-6">
+      <div className="flex items-start gap-2 rounded-xl border border-officer-blue/30 bg-officer-blue/10 p-3 text-xs text-officer-muted">
+        <span className="text-base leading-none">ℹ️</span>
+        <span>
+          <span className="font-semibold text-white">Prototype:</span> live AI inference runs <span className="text-officer-primary-soft">locally on the demo machine (GPU)</span> — this build is not cloud-hosted for inference.
+          Real-time detection will be enabled on the server in the final deployment. All other features (challans, analytics, maps, email) run on cloud.
+        </span>
+      </div>
       <div className="grid gap-6 xl:grid-cols-[1.6fr_1fr]">
         <div className="space-y-5">
           <Card padding className="overflow-hidden p-0">

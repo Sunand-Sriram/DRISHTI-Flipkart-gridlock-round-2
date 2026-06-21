@@ -141,6 +141,13 @@ async def run_inference_task(task_id: str, ws):
                     "VALUES (?,?,?,?,?,?,?,?,?,?)",
                     (eid, emergency["cls"], cam["id"], cam["location"], cam["lat"], cam["lng"],
                      "Checkpost 3", "SI Priya Sharma", "active", time.time())).connection.commit())
+                # auto-dispatch a green-corridor alert to the checkpost + notify officer
+                db.add_notification("cp:Checkpost 3", "dispatch",
+                                    f"🚨 {emergency['cls'].title()} inbound — clear the lane",
+                                    f"Auto green corridor from {cam['id']} ({cam['location']}). ETA ~2 min.",
+                                    "/officer/cameras")
+                db.add_notification("officer", "emergency", f"{emergency['cls'].title()} detected at {cam['location']}",
+                                    "Auto-dispatched to Checkpost 3.", "/officer/emergencies")
                 await ws.send_json({"type": "emergency", "data": {
                     "id": eid, "vehicle": emergency["cls"], "camera": cam["id"],
                     "location": cam["location"], "checkpost": "Checkpost 3"}})
