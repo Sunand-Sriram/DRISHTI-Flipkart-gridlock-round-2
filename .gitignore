@@ -5,22 +5,28 @@ __pycache__/
 .venv/
 venv/
 
-# DB + generated runtime artifacts
-drishti/api/*.db
-drishti/api/*.db-wal
-drishti/api/*.db-shm
-drishti/api/outbox/
+# uploads (runtime) — not needed in repo
 drishti/uploads/
 
-# Large ML assets — NOT committed (see DEPLOY.md to obtain)
+# ───────── Large ML assets — NOT committed (see DEPLOY.md) ─────────
 drishti/models/
 drishti/datasets/
-drishti/runs/
 *.pt
 *.onnx
 *.zip
 *.log
 catboost_info/
+
+# training-run outputs are huge — ignore everything under runs/ EXCEPT the
+# pre-generated demo evidence images (so the deployed site shows real photos)
+drishti/runs/*
+!drishti/runs/drishti/
+drishti/runs/drishti/*
+!drishti/runs/drishti/*.jpg
+
+# NOTE: we intentionally DO commit the seeded demo DB + outbox so the site shows
+# data on a fresh clone without needing datasets/models:
+#   drishti/api/drishti.db  and  drishti/api/outbox/  are kept.
 
 # ───────── Node / frontend ─────────
 web/node_modules/
