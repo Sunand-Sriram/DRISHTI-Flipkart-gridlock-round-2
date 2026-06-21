@@ -1,0 +1,8 @@
+train: C:/drishti_data/uvh26_coarse_yolo/train/images
+val: C:/drishti_data/uvh26_coarse_yolo/val/images
+names:
+- car
+- two_wheeler
+- auto
+- bus
+- truck

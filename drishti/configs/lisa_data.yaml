@@ -1,0 +1,7 @@
+train: C:/drishti_data/lisa_yolo/train/images
+val: C:/drishti_data/lisa_yolo/val/images
+names:
+- red
+- yellow
+- green
+- 'off'

@@ -1,0 +1,115 @@
+@import "tailwindcss";
+
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+@theme {
+  --font-sans: "Space Grotesk", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+  /* ── Officer (tactical dark · navy + amber) ── */
+  --color-officer-bg: #060a14;
+  --color-officer-surface: #0f1932;
+  --color-officer-surface2: #0c1424;
+  --color-officer-border: #1c2740;
+  --color-officer-primary: #ffa733;
+  --color-officer-primary-soft: #ffce9a;
+  --color-officer-blue: #2d5bff;
+  --color-officer-mint: #34d399;
+  --color-officer-rose: #ff8a8a;
+  --color-officer-text: #f4f6fa;
+  --color-officer-muted: #8a93a3;
+  --color-officer-faint: #5b6473;
+
+  /* ── Citizen (clean light · blue) ── */
+  --color-citizen-bg: #f5f8ff;
+  --color-citizen-surface: #ffffff;
+  --color-citizen-border: #e6ecf7;
+  --color-citizen-primary: #2d5bff;
+  --color-citizen-primary-dark: #1e40d8;
+  --color-citizen-coral: #fb923c;
+  --color-citizen-mint: #16a34a;
+  --color-citizen-ink: #15181e;
+  --color-citizen-muted: #717a88;
+  --color-citizen-faint: #9aa3b2;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  font-variant-numeric: tabular-nums;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: var(--font-sans);
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.font-mono,
+.tabular-nums {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+@keyframes mesh-drift {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+@keyframes dot-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: .25; transform: scale(.7); }
+}
+
+@keyframes scan-line {
+  0% { top: -3px; opacity: 0; }
+  10% { opacity: .85; }
+  88% { opacity: .85; }
+  100% { top: 100%; opacity: 0; }
+}
+
+.animate-dot-pulse { animation: dot-pulse 1.5s infinite; }
+
+/* Officer ambient mesh: deep navy with amber + blue glows */
+.ambient-mesh-officer {
+  background:
+    radial-gradient(ellipse at 15% 0%, rgba(255, 167, 51, 0.10), transparent 50%),
+    radial-gradient(ellipse at 85% 100%, rgba(45, 91, 255, 0.10), transparent 50%),
+    #060a14;
+  background-size: 200% 200%;
+  animation: mesh-drift 20s ease-in-out infinite;
+}
+
+/* Citizen ambient mesh: clean light with subtle blue */
+.ambient-mesh-citizen {
+  background:
+    radial-gradient(ellipse at 10% 0%, rgba(45, 91, 255, 0.05), transparent 55%),
+    radial-gradient(ellipse at 95% 90%, rgba(251, 146, 60, 0.04), transparent 50%),
+    #f5f8ff;
+  background-size: 200% 200%;
+  animation: mesh-drift 24s ease-in-out infinite;
+}
+
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 167, 51, 0.35);
+  border-radius: 999px;
+}
+
+.citizen-scroll::-webkit-scrollbar-thumb {
+  background: rgba(45, 91, 255, 0.3);
+}

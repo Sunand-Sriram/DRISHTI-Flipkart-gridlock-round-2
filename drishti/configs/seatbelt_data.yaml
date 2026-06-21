@@ -1,0 +1,4 @@
+train: C:/drishti_data/seatbelt/train/images
+val: C:/drishti_data/seatbelt/valid/images
+names:
+- seat_belt

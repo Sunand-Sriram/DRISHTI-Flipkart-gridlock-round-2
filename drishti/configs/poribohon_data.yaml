@@ -1,0 +1,13 @@
+train: C:/drishti_data/poribohon/train/images
+val: C:/drishti_data/poribohon/valid/images
+names:
+- bicycle
+- bike
+- bus
+- car
+- cng
+- easybike
+- leguna
+- rickshaw
+- truck
+- van

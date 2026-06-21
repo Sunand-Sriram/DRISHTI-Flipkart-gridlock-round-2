@@ -1,0 +1,27 @@
+# Render.com blueprint for the DRISHTI backend.
+# Deploy: push repo to GitHub → Render → New → Blueprint → pick this repo.
+services:
+  - type: web
+    name: drishti-api
+    runtime: python
+    rootDir: drishti
+    plan: free
+    buildCommand: pip install -r requirements-api.txt
+    startCommand: uvicorn api.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: DRISHTI_PORTAL_URL
+        sync: false            # set to your Vercel frontend URL
+      - key: DRISHTI_MAIL_FROM
+        value: "DRISHTI Traffic <no-reply@drishti.gov.in>"
+      # Set these to enable real email (e.g. Gmail App Password):
+      - key: DRISHTI_SMTP_HOST
+        sync: false
+      - key: DRISHTI_SMTP_PORT
+        value: "587"
+      - key: DRISHTI_SMTP_USER
+        sync: false
+      - key: DRISHTI_SMTP_PASS
+        sync: false
+      # Optional: enables live DrishtiBot answers (otherwise graceful offline fallback)
+      - key: ANTHROPIC_API_KEY
+        sync: false

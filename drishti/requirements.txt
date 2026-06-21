@@ -1,0 +1,11 @@
+# DRISHTI training requirements
+ultralytics>=8.3
+kaggle
+opencv-python
+pyyaml
+
+# NOTE: torch + torchvision must be installed with CUDA separately (not from PyPI),
+# otherwise training runs on CPU. For this machine (RTX 4070, recent driver):
+#   pip install --force-reinstall torch torchvision \
+#       --index-url https://download.pytorch.org/whl/cu128 \
+#       --extra-index-url https://pypi.org/simple

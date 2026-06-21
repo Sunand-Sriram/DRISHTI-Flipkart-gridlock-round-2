@@ -1,0 +1,8 @@
+train: C:/drishti_data/s2tld_yolo/train/images
+val: C:/drishti_data/s2tld_yolo/val/images
+names:
+- green
+- 'off'
+- red
+- wait_on
+- yellow

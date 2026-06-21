@@ -1,0 +1,4 @@
+train: C:/drishti_data/phone/train/images
+val: C:/drishti_data/phone/valid/images
+names:
+- cell_phone

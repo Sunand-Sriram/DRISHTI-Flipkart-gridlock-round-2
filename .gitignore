@@ -1,0 +1,40 @@
+# ───────── Python / backend ─────────
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# DB + generated runtime artifacts
+drishti/api/*.db
+drishti/api/*.db-wal
+drishti/api/*.db-shm
+drishti/api/outbox/
+drishti/uploads/
+
+# Large ML assets — NOT committed (see DEPLOY.md to obtain)
+drishti/models/
+drishti/datasets/
+drishti/runs/
+*.pt
+*.onnx
+*.zip
+*.log
+catboost_info/
+
+# ───────── Node / frontend ─────────
+web/node_modules/
+web/dist/
+web/.vite/
+npm-debug.log*
+
+# ───────── Env / secrets ─────────
+.env
+.env.local
+.env.*.local
+
+# ───────── OS / editor ─────────
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

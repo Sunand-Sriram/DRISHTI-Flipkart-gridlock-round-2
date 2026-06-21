@@ -1,0 +1,4 @@
+train: C:/drishti_data/plate_yolo/train/images
+val: C:/drishti_data/plate_yolo/val/images
+names:
+- number_plate

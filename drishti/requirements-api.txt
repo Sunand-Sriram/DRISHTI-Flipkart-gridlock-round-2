@@ -1,0 +1,9 @@
+# Slim deps to run the DRISHTI API/portal backend on a normal host (no GPU).
+# Live ML inference (video upload) needs the heavier training deps in requirements.txt;
+# everything else — challans, analytics, email, maps data, notifications — runs on these.
+fastapi>=0.110
+uvicorn[standard]>=0.29
+python-multipart>=0.0.9
+reportlab>=4.0
+opencv-python-headless>=4.9
+anthropic>=0.39

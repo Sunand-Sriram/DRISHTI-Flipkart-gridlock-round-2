@@ -1,0 +1,17 @@
+train: C:/drishti_data/uvh26_yolo/train/images
+val: C:/drishti_data/uvh26_yolo/val/images
+names:
+- Hatchback
+- Sedan
+- SUV
+- MUV
+- Bus
+- Truck
+- Three-wheeler
+- Two-wheeler
+- LCV
+- Mini-bus
+- Tempo-traveller
+- Bicycle
+- Van
+- Others

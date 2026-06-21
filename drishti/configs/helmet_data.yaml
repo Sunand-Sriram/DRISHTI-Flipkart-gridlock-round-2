@@ -1,0 +1,8 @@
+train: C:/Users/sunan/OneDrive/Documents/CODING/HACKATHON/FLIPKART/drishti/datasets/raw/indian-helmet/train/images
+val: C:/Users/sunan/OneDrive/Documents/CODING/HACKATHON/FLIPKART/drishti/datasets/raw/indian-helmet/valid/images
+names:
+- number_plate
+- no_helmet
+- helmet
+- bad_helmet
+- rider

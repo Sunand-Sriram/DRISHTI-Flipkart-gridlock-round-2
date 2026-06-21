@@ -1,0 +1,8 @@
+train: C:/drishti_data/helmet_v2_yolo/train/images
+val: C:/drishti_data/helmet_v2_yolo/val/images
+names:
+- number_plate
+- no_helmet
+- helmet
+- bad_helmet
+- rider

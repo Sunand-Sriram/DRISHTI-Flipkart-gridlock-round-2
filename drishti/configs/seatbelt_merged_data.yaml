@@ -1,0 +1,4 @@
+train: C:/drishti_data/seatbelt_merged/train/images
+val: C:/drishti_data/seatbelt_merged/val/images
+names:
+- seat_belt

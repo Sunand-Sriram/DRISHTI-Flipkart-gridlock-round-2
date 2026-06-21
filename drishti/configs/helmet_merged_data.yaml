@@ -1,0 +1,7 @@
+train: C:/drishti_data/helmet_merged/train/images
+val: C:/drishti_data/helmet_merged/val/images
+names:
+- number_plate
+- no_helmet
+- helmet
+- rider
