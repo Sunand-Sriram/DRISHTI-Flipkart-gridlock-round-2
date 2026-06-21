@@ -4,29 +4,38 @@ __pycache__/
 *.egg-info/
 .venv/
 venv/
-
-# uploads (runtime) — not needed in repo
 drishti/uploads/
-
-# ───────── Large ML assets — NOT committed (see DEPLOY.md) ─────────
-drishti/models/
-drishti/datasets/
-*.pt
-*.onnx
 *.zip
 *.log
 catboost_info/
 
-# training-run outputs are huge — ignore everything under runs/ EXCEPT the
-# pre-generated demo evidence images (so the deployed site shows real photos)
+# ───────── Models ─────────
+# commit ONLY the 6 models the pipeline uses (39 MB each); ignore everything else
+drishti/models/*
+!drishti/models/vehicle_uvh26_coarse_yolo11m_best.pt
+!drishti/models/helmet_merged_yolo11m_best.pt
+!drishti/models/plate_merged_yolo11m_best.pt
+!drishti/models/trafficlight_s2tld_yolo11m_best.pt
+!drishti/models/seatbelt_merged_yolo11m_best.pt
+!drishti/models/phone_v2_yolo11m_best.pt
+
+# ───────── Datasets ─────────
+# commit ONLY the small bdd-scenes pool (evidence regeneration); ignore the 7 GB rest
+drishti/datasets/*
+!drishti/datasets/raw/
+drishti/datasets/raw/*
+!drishti/datasets/raw/bdd-scenes/
+drishti/datasets/raw/bdd-scenes/*
+!drishti/datasets/raw/bdd-scenes/*.jpg
+
+# ───────── Runs / evidence ─────────
+# ignore huge training runs; keep the pre-generated demo evidence images
 drishti/runs/*
 !drishti/runs/drishti/
 drishti/runs/drishti/*
 !drishti/runs/drishti/*.jpg
 
-# NOTE: we intentionally DO commit the seeded demo DB + outbox so the site shows
-# data on a fresh clone without needing datasets/models:
-#   drishti/api/drishti.db  and  drishti/api/outbox/  are kept.
+# seeded demo DB + outbox ARE committed (so the site shows data on a fresh clone)
 
 # ───────── Node / frontend ─────────
 web/node_modules/
