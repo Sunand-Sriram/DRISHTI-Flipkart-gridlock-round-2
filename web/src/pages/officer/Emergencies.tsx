@@ -1,138 +1,103 @@
-import { useEffect, useState } from 'react'
+import { AlertTriangle, Siren, MapPin, Send, X } from 'lucide-react'
 import { motion } from 'framer-motion'
-import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
-import { DrishtiMap, type MapMarker } from '@/components/ui/DrishtiMap'
+import { Badge } from '@/components/ui/Badge'
+import { MagneticButton } from '@/components/motion/MagneticButton'
+import { DrishtiMap } from '@/components/ui/DrishtiMap'
+import { useEmergencies } from '@/lib/hooks'
 import { api } from '@/lib/api'
-import type { Emergency } from '@/lib/types'
+import { useToast } from '@/components/ui/Toast'
 
 export default function Emergencies() {
-  const [active, setActive] = useState<Emergency[]>([])
-  const [resolved, setResolved] = useState<Emergency[]>([])
-  const [mapFor, setMapFor] = useState<string | null>(null)
-  const [followed, setFollowed] = useState<Set<string>>(new Set())
-  const [toast, setToast] = useState<string | null>(null)
-  useEffect(() => {
-    api.emergencies('active').then(setActive).catch(() => setActive([]))
-    api.emergencies('resolved').then(setResolved).catch(() => setResolved([]))
-  }, [])
+  const { data: active, reload } = useEmergencies('active')
+  const { data: resolved } = useEmergencies('resolved')
+  const toast = useToast()
+  const items = active || []
 
-  function dismiss(id: string) {
-    api.dismissEmergency(id).catch(() => {})
-    setActive((a) => a.filter((e) => e.id !== id))
-  }
-
-  async function followUp(id: string) {
-    setFollowed((s) => new Set(s).add(id))
-    try {
-      const r = await api.followUpEmergency(id)
-      setToast(`✓ Green-corridor alert sent to ${r.checkpost} — ${r.vehicle} inbound from ${r.camera}`)
-    } catch {
-      setToast('⚠️ Could not dispatch alert')
-    }
-    setTimeout(() => setToast(null), 4000)
-  }
-
-  const markers: MapMarker[] = active.map((e) => ({
-    lat: e.lat, lng: e.lng, label: `🚨 ${e.vehicle}`, sub: `${e.location} → ${e.checkpost}`,
-    color: '#fbbf24', radius: 11,
+  const markers = items.map((e) => ({
+    lat: e.lat, lng: e.lng,
+    label: `${e.vehicle.toUpperCase()} — ${e.location}`,
+    color: '#F43F5E',
+    radius: 12,
   }))
 
-  return (
-    <div className="space-y-8">
-      {toast && (
-        <motion.div
-          initial={{ opacity: 0, y: -16 }} animate={{ opacity: 1, y: 0 }}
-          className="fixed right-6 top-20 z-50 max-w-sm rounded-xl border border-officer-mint/40 bg-officer-surface px-5 py-4 text-sm text-officer-mint shadow-2xl"
-        >
-          {toast}
-        </motion.div>
-      )}
-      <p className="text-2xl font-bold text-officer-mint">🚨 ACTIVE EMERGENCIES: {active.length}</p>
+  const dismiss = async (id: string) => { await api.dismissEmergency(id); toast.info('Emergency dismissed'); reload() }
+  const followUp = async (id: string) => { await api.followUpEmergency(id); toast.success('Green corridor alert dispatched'); reload() }
 
-      {active.length === 0 ? (
-        <Card className="py-12 text-center text-officer-mint">All clear — no active alerts ✓</Card>
-      ) : (
-        <>
-        <Card padding={false} className="overflow-hidden">
-          <DrishtiMap markers={markers} height={300} zoom={12} />
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h2 className="text-h2 text-text-primary">Emergency Alerts</h2>
+        <Badge variant="danger" dot>{items.length} active</Badge>
+      </div>
+
+      {/* Map */}
+      <DrishtiMap markers={markers} height="300px" className="border border-border-glass" />
+
+      {/* Active */}
+      {items.length === 0 ? (
+        <Card className="text-center py-12">
+          <Siren className="h-10 w-10 text-emerald mx-auto mb-2" />
+          <p className="text-text-muted">No active emergencies</p>
         </Card>
-        <div className="space-y-5">
-          {active.map((e, i) => (
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {items.map((e, i) => (
             <motion.div
               key={e.id}
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: i * 0.1 }}
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: i * 0.05, type: 'spring', stiffness: 100, damping: 20 }}
             >
-              <Card className="border-red-500/20">
-                <div className="mb-4 rounded-lg bg-red-500/20 px-4 py-2 font-bold text-red-300">
-                  ⚠️ {e.vehicle} DETECTED
-                </div>
-                <p className="font-mono text-officer-muted">{e.camera} · {e.location}</p>
-                <p className="mt-2 text-sm text-officer-muted">
-                  {new Date(e.created_at * 1000).toLocaleTimeString()} · Spotted {Math.round((Date.now() / 1000 - e.created_at) / 60)}m ago
-                </p>
-                <div className="mt-4 space-y-1 text-sm">
-                  <p className="text-officer-mint">📍 Alert Status: ✓ Sent to {e.checkpost}</p>
-                  <p className="text-officer-muted">📍 Checkpost Officer: {e.officer}</p>
-                  <p className="text-officer-muted">📍 Est. Time to Clearance: 2m 15s</p>
-                </div>
-                <div className="mt-5 flex flex-wrap gap-2">
-                  <Button size="sm" variant="outline" onClick={() => setMapFor(mapFor === e.id ? null : e.id)}>
-                    {mapFor === e.id ? 'Hide Map' : 'View on Map'}
-                  </Button>
-                  <Button size="sm" variant="outline" onClick={() => dismiss(e.id)}>Dismiss</Button>
-                  <Button
-                    size="sm"
-                    variant={followed.has(e.id) ? 'success' : 'ghost'}
-                    onClick={() => followUp(e.id)}
-                  >
-                    {followed.has(e.id) ? '✓ Alert Sent' : 'Follow Up'}
-                  </Button>
-                </div>
-                {mapFor === e.id && (
-                  <div className="mt-4 overflow-hidden rounded-xl">
-                    <DrishtiMap
-                      markers={[{ lat: e.lat, lng: e.lng, label: `🚨 ${e.vehicle}`, sub: e.location, color: '#fbbf24', radius: 12 }]}
-                      center={[e.lat, e.lng]} zoom={15} height={240}
-                    />
+              <Card className="border border-crimson/20 animate-border-glow">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="p-2 rounded-xl bg-crimson/15">
+                    <AlertTriangle className="h-5 w-5 text-crimson" />
                   </div>
-                )}
+                  <div>
+                    <p className="font-display font-semibold text-text-primary capitalize">{e.vehicle}</p>
+                    <p className="text-xs text-text-muted">{e.id} · {e.camera}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-text-secondary mb-1">
+                  <MapPin className="h-3.5 w-3.5 text-text-muted" /> {e.location}
+                </div>
+                <p className="text-xs text-text-muted mb-4">Checkpost: {e.checkpost} · Officer: {e.officer}</p>
+                <div className="flex gap-2">
+                  <MagneticButton variant="success" size="sm" onClick={() => followUp(e.id)} className="flex-1">
+                    <Send className="h-3.5 w-3.5" /> Follow Up
+                  </MagneticButton>
+                  <MagneticButton variant="ghost" size="sm" onClick={() => dismiss(e.id)}>
+                    <X className="h-3.5 w-3.5" /> Dismiss
+                  </MagneticButton>
+                </div>
               </Card>
             </motion.div>
           ))}
         </div>
-        </>
       )}
 
-      <div>
-        <h2 className="mb-4 text-lg font-semibold">📋 Alert History (past 2 hours)</h2>
-        <Card padding={false}>
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-officer-border text-left text-officer-muted">
-                <th className="p-4">Time</th>
-                <th className="p-4">Type</th>
-                <th className="p-4">Camera</th>
-                <th className="p-4">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {resolved.length === 0 ? (
-                <tr><td colSpan={4} className="p-6 text-center text-officer-muted">No resolved alerts</td></tr>
-              ) : resolved.map((h) => (
-                <tr key={h.id} className="border-b border-officer-border/50 hover:bg-white/5">
-                  <td className="p-4 font-mono">{new Date(h.created_at * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
-                  <td className="p-4 capitalize">{h.vehicle}</td>
-                  <td className="p-4 font-mono">{h.camera}</td>
-                  <td className="p-4 text-officer-mint">Cleared ✓</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </Card>
-      </div>
+      {/* Resolved history */}
+      {resolved && resolved.length > 0 && (
+        <>
+          <h3 className="text-h3 text-text-primary pt-4">Recent History</h3>
+          <div className="glass rounded-xl overflow-hidden">
+            <table className="data-table">
+              <thead><tr><th>ID</th><th>Vehicle</th><th>Location</th><th>Status</th></tr></thead>
+              <tbody>
+                {resolved.slice(0, 10).map((e) => (
+                  <tr key={e.id}>
+                    <td className="font-mono text-xs">{e.id}</td>
+                    <td className="capitalize">{e.vehicle}</td>
+                    <td>{e.location}</td>
+                    <td><Badge variant={e.status === 'resolved' ? 'success' : 'muted'}>{e.status}</Badge></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
     </div>
   )
 }

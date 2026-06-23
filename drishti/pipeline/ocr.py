@@ -26,7 +26,6 @@ def _get():
 
 # Indian plate: 2 letters (state) + 1-2 digits (RTO) + 1-3 letters (series) + 4 digits.
 _PLATE_RE = re.compile(r"^[A-Z]{2}\d{1,2}[A-Z]{1,3}\d{4}$")
-_FIX = {"O": "0", "I": "1", "Q": "0", "Z": "2", "S": "5", "B": "8"}
 
 
 def normalize_plate(text: str) -> str:

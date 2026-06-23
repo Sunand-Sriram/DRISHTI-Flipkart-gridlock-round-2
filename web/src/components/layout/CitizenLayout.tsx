@@ -1,115 +1,125 @@
-import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { useEffect } from 'react'
+import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom'
+import { motion } from 'framer-motion'
 import {
-  Bell, CreditCard, FileText, HelpCircle, History as HistoryIcon,
-  Home, LogOut, Receipt, ShieldQuestion,
+  FileText, CreditCard, Bell, HelpCircle, History, LogOut,
 } from 'lucide-react'
 import { DrishtiLogo } from '@/components/ui/DrishtiLogo'
+import { getCitizenToken, getCitizenChallanId, citizenLogout } from '@/lib/store'
 import { cn } from '@/lib/utils'
-import { citizenLogout, getCitizenChallanId, getCitizenToken } from '@/lib/store'
 
-export function CitizenLayout() {
+const NAV_ITEMS = [
+  { path: '/citizen/history', label: 'History', icon: History },
+  { path: '/citizen/payments', label: 'Payments', icon: CreditCard },
+  { path: '/citizen/notifications', label: 'Alerts', icon: Bell },
+  { path: '/citizen/help', label: 'Help', icon: HelpCircle },
+]
+
+export default function CitizenLayout() {
   const navigate = useNavigate()
-  const loggedIn = !!getCitizenToken()
+  const location = useLocation()
+  const token = getCitizenToken()
   const challanId = getCitizenChallanId()
 
-  const nav = [
-    { to: challanId ? `/citizen/challan/${challanId}` : '/citizen', label: 'My Challan', icon: FileText },
-    { to: challanId ? `/citizen/pay/${challanId}` : '/citizen', label: 'Pay Fine', icon: CreditCard },
-    { to: challanId ? `/citizen/contest/${challanId}` : '/citizen', label: 'Contest Challan', icon: ShieldQuestion },
-    { to: '/citizen/history', label: 'Challan History', icon: HistoryIcon },
-    { to: '/citizen/payments', label: 'Payment History', icon: Receipt },
-    { to: '/citizen/notifications', label: 'Notifications', icon: Bell },
-    { to: '/citizen/help', label: 'Help & Support', icon: HelpCircle },
-  ]
+  useEffect(() => {
+    // If on login page (index), don't redirect
+    if (location.pathname === '/citizen') return
+    // If not logged in, redirect to login
+    if (!token) navigate('/citizen')
+  }, [token, location.pathname, navigate])
 
-  function logout() {
-    citizenLogout()
-    navigate('/citizen')
-  }
+  const handleLogout = () => { citizenLogout(); navigate('/citizen') }
 
   return (
-    <div className="ambient-mesh-citizen citizen-scroll min-h-screen text-citizen-ink">
-      <div className="mx-auto flex min-h-screen max-w-7xl">
-        {/* Sidebar */}
-        <aside className="sticky top-0 hidden h-screen w-[248px] flex-col border-r border-citizen-border bg-white/80 backdrop-blur-xl md:flex">
-          <div className="border-b border-citizen-border p-5">
-            <Link to="/"><DrishtiLogo size="sm" citizen /></Link>
-            <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.18em] text-citizen-faint">Citizen Portal</p>
-          </div>
+    <div className="min-h-screen ambient-citizen citizen-portal citizen-scroll">
+      {/* ── Desktop header ── */}
+      <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-xl border-b border-citizen-border">
+        <div className="max-w-4xl mx-auto flex items-center justify-between h-16 px-6">
+          <NavLink to="/citizen" className="flex items-center gap-2">
+            <DrishtiLogo size="sm" citizen />
+          </NavLink>
 
-          <nav className="flex-1 space-y-1 overflow-y-auto p-3">
-            {nav.map((item) => (
-              <NavLink
-                key={item.label}
-                to={item.to}
-                end={item.to === '/citizen'}
-                className={({ isActive }) =>
-                  cn(
-                    'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors',
-                    isActive
-                      ? 'bg-citizen-primary/10 text-citizen-primary'
-                      : 'text-citizen-muted hover:bg-citizen-primary/5 hover:text-citizen-ink'
-                  )
-                }
-              >
-                <item.icon className="h-[18px] w-[18px] shrink-0" />
-                <span className="truncate">{item.label}</span>
-              </NavLink>
-            ))}
-          </nav>
-
-          <div className="border-t border-citizen-border p-4">
-            {loggedIn ? (
+          {token && (
+            <div className="hidden md:flex items-center gap-1">
+              {challanId && (
+                <NavLink
+                  to={`/citizen/challan/${challanId}`}
+                  className={({ isActive }) => cn(
+                    'flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium',
+                    isActive ? 'bg-citizen-primary/10 text-citizen-primary' : 'text-citizen-muted hover:text-citizen-text hover:bg-gray-50',
+                  )}
+                >
+                  <FileText className="h-4 w-4" /> My Challan
+                </NavLink>
+              )}
+              {NAV_ITEMS.map((item) => (
+                <NavLink
+                  key={item.path}
+                  to={item.path}
+                  className={({ isActive }) => cn(
+                    'flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium',
+                    isActive ? 'bg-citizen-primary/10 text-citizen-primary' : 'text-citizen-muted hover:text-citizen-text hover:bg-gray-50',
+                  )}
+                >
+                  <item.icon className="h-4 w-4" /> {item.label}
+                </NavLink>
+              ))}
               <button
-                onClick={logout}
-                className="flex w-full items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2.5 text-sm font-medium text-rose-600 hover:bg-rose-100"
+                onClick={handleLogout}
+                className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-citizen-muted hover:text-red-600 hover:bg-red-50 ml-2"
               >
-                <LogOut className="h-[18px] w-[18px]" /> Sign Out
+                <LogOut className="h-4 w-4" /> Sign Out
               </button>
-            ) : (
-              <Link
-                to="/"
-                className="flex w-full items-center gap-2 rounded-xl border border-citizen-border px-3 py-2.5 text-sm font-medium text-citizen-muted hover:text-citizen-ink"
-              >
-                <Home className="h-[18px] w-[18px]" /> Home
-              </Link>
-            )}
-          </div>
-        </aside>
-
-        {/* Main */}
-        <div className="flex min-w-0 flex-1 flex-col">
-          <header className="sticky top-0 z-40 flex h-16 items-center justify-between border-b border-citizen-border bg-white/80 px-[clamp(1rem,3vw,2rem)] backdrop-blur-xl md:hidden">
-            <Link to="/citizen"><DrishtiLogo size="sm" citizen /></Link>
-            <Link to="/" className="text-sm text-citizen-muted hover:text-citizen-primary">Home</Link>
-          </header>
-
-          <main className="mx-auto w-full max-w-3xl flex-1 px-[clamp(1rem,3vw,2rem)] py-[clamp(1.5rem,4vw,2.5rem)] pb-24">
-            <Outlet />
-          </main>
-
-          {/* Mobile bottom nav */}
-          <nav className="fixed inset-x-0 bottom-0 z-40 flex items-center justify-around border-t border-citizen-border bg-white/95 py-2 backdrop-blur-xl md:hidden">
-            {[nav[0], nav[1], nav[3], nav[5]].map((item) => (
-              <NavLink
-                key={item.label}
-                to={item.to}
-                className={({ isActive }) =>
-                  cn('flex flex-col items-center gap-0.5 px-3 py-1 text-[10px]',
-                    isActive ? 'text-citizen-primary' : 'text-citizen-faint')
-                }
-              >
-                <item.icon className="h-5 w-5" />
-                {item.label.split(' ')[0]}
-              </NavLink>
-            ))}
-          </nav>
-
-          <footer className="border-t border-citizen-border bg-white/60 py-5 text-center text-xs text-citizen-faint">
-            © 2026 DRISHTI · Demo build · support@drishti.local
-          </footer>
+            </div>
+          )}
         </div>
-      </div>
+      </header>
+
+      {/* ── Page content ── */}
+      <main className="max-w-4xl mx-auto px-6 py-8 pb-28 md:pb-8">
+        <Outlet />
+      </main>
+
+      {/* ── Mobile bottom nav ── */}
+      {token && (
+        <nav className="md:hidden fixed bottom-0 inset-x-0 z-30 bg-white/90 backdrop-blur-xl border-t border-citizen-border">
+          <div className="flex items-center justify-around h-16">
+            {challanId && (
+              <MobileNavItem to={`/citizen/challan/${challanId}`} icon={FileText} label="Challan" />
+            )}
+            {NAV_ITEMS.map((item) => (
+              <MobileNavItem key={item.path} to={item.path} icon={item.icon} label={item.label} />
+            ))}
+          </div>
+        </nav>
+      )}
+
+      {/* Footer */}
+      <footer className="hidden md:block max-w-4xl mx-auto px-6 py-6 border-t border-citizen-border mt-8">
+        <p className="text-xs text-citizen-faint text-center">
+          © 2025 DRISHTI — AI-Powered Traffic Enforcement · Government of Karnataka
+        </p>
+      </footer>
     </div>
+  )
+}
+
+function MobileNavItem({ to, icon: Icon, label }: { to: string; icon: typeof FileText; label: string }) {
+  const location = useLocation()
+  const isActive = location.pathname.startsWith(to)
+  return (
+    <NavLink to={to} className="flex flex-col items-center gap-0.5 px-2 py-1 relative">
+      {isActive && (
+        <motion.div
+          layoutId="citizen-nav-indicator"
+          className="absolute -top-px inset-x-2 h-0.5 rounded-full bg-citizen-primary"
+          transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+        />
+      )}
+      <Icon className={cn('h-5 w-5', isActive ? 'text-citizen-primary' : 'text-citizen-muted')} />
+      <span className={cn('text-[10px] font-medium', isActive ? 'text-citizen-primary' : 'text-citizen-muted')}>
+        {label}
+      </span>
+    </NavLink>
   )
 }

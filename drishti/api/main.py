@@ -184,6 +184,12 @@ def analytics_trend(days: int = 7):
 def list_cameras():
     conn = db.connect()
     rows = [dict(r) for r in conn.execute("SELECT * FROM cameras")]
+    # derive the live violation count per camera (the stored `count` column is
+    # never incremented) so the Cameras screen + map popups show real numbers
+    counts = {r["camera"]: r["c"] for r in conn.execute(
+        "SELECT camera, COUNT(*) c FROM challans GROUP BY camera")}
+    for r in rows:
+        r["count"] = counts.get(r["id"], 0)
     conn.close()
     return rows
 
@@ -261,6 +267,13 @@ def hotspots_predict(time_offset: int = 0):
     t = time.localtime(time.time() + time_offset * 60)
     dow, hour = t.tm_wday, t.tm_hour
     items = model["predictions"].get(str(dow), {}).get(str(hour), [])
+    # Normalize risk to 0‥1 — raw values are event counts, not probabilities
+    if items:
+        max_risk = max(i.get("risk", 1) for i in items) or 1
+        for item in items:
+            raw = item.get("risk", 0)
+            item["risk"] = round(min(raw / max(max_risk, 1), 1.0), 3)
+            item["expected"] = round(item.get("expected", raw), 1)
     return {"hotspots": items, "dow": dow, "hour": hour,
             "based_on": model.get("total_events"), "weeks": model.get("weeks_observed")}
 

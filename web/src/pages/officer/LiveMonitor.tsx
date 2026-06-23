@@ -1,308 +1,184 @@
-import { useEffect, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useState, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { AlertTriangle, Download, Upload, Video } from 'lucide-react'
-import { Button } from '@/components/ui/Button'
+import { Upload, Radio, Zap, AlertTriangle, X, Play, Square } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
+import { Badge } from '@/components/ui/Badge'
 import { Switch } from '@/components/ui/Switch'
+import { MagneticButton } from '@/components/motion/MagneticButton'
 import { ViolationBadge } from '@/components/ui/ViolationBadge'
-import { useChallans } from '@/lib/hooks'
 import { useInferenceStream } from '@/lib/ws'
-import { evidenceUrl } from '@/lib/api'
 import { cn, inr } from '@/lib/utils'
 
 export default function LiveMonitor() {
   const navigate = useNavigate()
   const [mode, setMode] = useState<'cctv' | 'upload'>('cctv')
   const [enhance, setEnhance] = useState(false)
-  const [file, setFile] = useState<File | null>(null)
-  const [streaming, setStreaming] = useState(true)
-  const [fps, setFps] = useState(24.5)
-  // Emergency banner only appears when a real emergency is streamed (no popup on load).
-  const [alert, setAlert] = useState(false)
-  const stream = useInferenceStream()
-  const { data: recent } = useChallans({ limit: 12 })
-  // phone IP-webcam live feed
-  const [liveUrl, setLiveUrl] = useState('')
-  const [liveViewOn, setLiveViewOn] = useState(false)
-  // CCTV mode: cycle real evidence scenes as the "live feed"
-  const [liveIdx, setLiveIdx] = useState(0)
-  const recentItems = recent?.items ?? []
-  const liveItem = recentItems[liveIdx % Math.max(1, recentItems.length)]
-  const estFines = recentItems.reduce((s, c) => s + (c.fine_inr || 0), 0)
 
-  // Unified feed: live stream events in upload mode, recent real challans in CCTV mode.
-  const feed =
-    mode === 'upload'
-      ? stream.violations.map((v, i) => ({
-          id: i + 1, type: v.violation, plate: v.plate ?? '—',
-          confidence: v.confidence, challan_id: v.challan_id,
-        }))
-      : (recent?.items ?? []).map((c, i) => ({
-          id: i + 1, type: c.violation, plate: c.plate ?? '—',
-          confidence: c.confidence ?? 0, challan_id: c.challan_id,
-        }))
+  const [streamUrl, setStreamUrl] = useState('')
+  const fileRef = useRef<HTMLInputElement>(null)
+  const { frame, violations, emergency, progress, running, error, done, start, startUrl, stop, setEmergency } = useInferenceStream()
 
-  useEffect(() => {
-    if (!streaming) return
-    const t = setInterval(() => setFps(23 + Math.random() * 3), 2000)
-    return () => clearInterval(t)
-  }, [streaming])
-
-  // rotate the CCTV feed through recent real evidence frames
-  useEffect(() => {
-    if (!streaming || mode !== 'cctv' || recentItems.length < 2) return
-    const t = setInterval(() => setLiveIdx((i) => (i + 1) % recentItems.length), 3500)
-    return () => clearInterval(t)
-  }, [streaming, mode, recentItems.length])
-
-  useEffect(() => {
-    if (!alert) return
-    const t = setTimeout(() => setAlert(false), 10000)
-    return () => clearTimeout(t)
-  }, [alert])
-
-  async function analyse() {
-    // stride fixed at 1 (every frame) — detects all violation types in a single pass
-    if (mode === 'upload' && file) await stream.start(file, enhance, 1)
+  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) start(file, enhance, 1)
   }
+
+  const handleStream = () => { if (streamUrl) startUrl(streamUrl, enhance) }
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start gap-2 rounded-xl border border-officer-blue/30 bg-officer-blue/10 p-3 text-xs text-officer-muted">
-        <span className="text-base leading-none">ℹ️</span>
-        <span>
-          <span className="font-semibold text-white">Prototype:</span> live AI inference runs <span className="text-officer-primary-soft">locally on the demo machine (GPU)</span> — this build is not cloud-hosted for inference.
-          Real-time detection will be enabled on the server in the final deployment. All other features (challans, analytics, maps, email) run on cloud.
-        </span>
-      </div>
-      <div className="grid gap-6 xl:grid-cols-[1.6fr_1fr]">
-        <div className="space-y-5">
-          <Card padding className="overflow-hidden p-0">
-            <div className="relative aspect-video bg-black">
-              {stream.frame ? (
-                <img src={stream.frame} alt="Live inference frame"
-                     className="absolute inset-0 h-full w-full object-contain bg-black" />
-              ) : liveViewOn && liveUrl ? (
-                <img src={liveUrl} alt="Phone live feed"
-                     className="absolute inset-0 h-full w-full object-contain bg-black"
-                     onError={() => setLiveViewOn(false)} />
-              ) : liveItem?.evidence_image ? (
-                <img key={liveItem.challan_id} src={evidenceUrl(liveItem.evidence_image)} alt="Live feed"
-                     className="absolute inset-0 h-full w-full object-cover" />
-              ) : (
-                <div className="absolute inset-0 grid place-items-center bg-gradient-to-b from-officer-bg to-[#0c1424] text-officer-muted">
-                  Connect a feed or upload a clip
-                </div>
-              )}
-              <div className="absolute bottom-4 left-4 flex gap-4 rounded-lg bg-black/40 px-3 py-1.5 font-mono text-xs text-white backdrop-blur">
-                <span>FPS: {fps.toFixed(1)}</span>
-                <span>Violations: {recentItems.length}</span>
-                <span>Est. Fines: {inr(estFines)}</span>
-              </div>
-              <div className="absolute top-4 right-4 flex gap-2">
-                <Button size="sm" variant="outline" onClick={() => setStreaming(!streaming)}>
-                  {streaming ? 'Stop Stream' : 'Start Stream'}
-                </Button>
-                <Button size="sm" variant="outline">
-                  <Video className="h-4 w-4" /> Record
-                </Button>
-              </div>
-              {streaming && (
-                <span className="absolute top-4 left-4 flex items-center gap-2 rounded-full bg-red-500/20 px-3 py-1 text-xs text-red-400">
-                  <span className="h-2 w-2 rounded-full bg-red-500 animate-pulse" /> LIVE
-                </span>
-              )}
-            </div>
-          </Card>
-
-          <Card>
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="font-semibold">Violation Feed</h2>
-              <div className="flex gap-2">
-                <Button size="sm" variant="outline">Load More</Button>
-                <Button size="sm" variant="ghost"><Download className="h-4 w-4" /> Export CSV</Button>
-              </div>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-officer-border text-left text-officer-muted">
-                    <th className="pb-3 font-mono">ID</th>
-                    <th className="pb-3">Type</th>
-                    <th className="pb-3 font-mono">Plate</th>
-                    <th className="pb-3 font-mono">Conf</th>
-                    <th className="pb-3" />
-                  </tr>
-                </thead>
-                <tbody>
-                  {feed.length === 0 ? (
-                    <tr><td colSpan={5} className="py-8 text-center text-officer-muted">
-                      {mode === 'upload' ? 'Upload a clip and press Analyse to stream detections' : 'No recent violations'}
-                    </td></tr>
-                  ) : feed.map((v) => (
-                    <tr
-                      key={v.challan_id || v.id}
-                      className="border-b border-officer-border/50 hover:bg-white/5 cursor-pointer"
-                      onClick={() => v.challan_id && navigate(`/officer/challans/${v.challan_id}`)}
-                    >
-                      <td className="py-3 font-mono text-amber-300">{v.challan_id || v.id}</td>
-                      <td className="py-3"><ViolationBadge type={v.type} /></td>
-                      <td className="py-3 font-mono">{v.plate}</td>
-                      <td className="py-3 font-mono">{v.confidence.toFixed(2)}</td>
-                      <td className="py-3 text-officer-primary">→</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </Card>
-        </div>
-
-        <Card className="h-fit space-y-6">
-          <div>
-            <p className="mb-3 text-sm font-medium text-officer-muted">Source Mode</p>
-            <div className="flex gap-2">
-              {(['cctv', 'upload'] as const).map((m) => (
-                <button
-                  key={m}
-                  type="button"
-                  onClick={() => setMode(m)}
-                  className={cn(
-                    'flex-1 rounded-xl border py-3 text-sm font-medium transition-all',
-                    mode === m
-                      ? 'border-officer-primary bg-amber-500/15 text-amber-200'
-                      : 'border-officer-border text-officer-muted hover:border-amber-500/30'
-                  )}
-                >
-                  {m === 'cctv' ? '📹 CCTV Mode' : '📤 Field Upload'}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {mode === 'upload' && (
-            <label className="flex cursor-pointer flex-col items-center gap-3 rounded-xl border-2 border-dashed border-officer-border p-8 text-center hover:border-amber-500/40">
-              <Upload className="h-8 w-8 text-officer-muted" />
-              <span className="text-sm text-officer-muted">Drag video or image here</span>
-              <input
-                type="file"
-                accept=".mp4,.mov,.avi,.jpg,.png"
-                className="hidden"
-                onChange={(e) => setFile(e.target.files?.[0] || null)}
-              />
-              {file && (
-                <p className="font-mono text-xs text-amber-300">
-                  {file.name} · {(file.size / 1024 / 1024).toFixed(1)} MB
-                </p>
-              )}
-            </label>
-          )}
-
-          {mode === 'cctv' && (
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-officer-muted">📱 Phone / CCTV stream URL</label>
-              <input
-                value={liveUrl}
-                onChange={(e) => setLiveUrl(e.target.value)}
-                placeholder="http://192.168.1.5:8080/video"
-                className="w-full rounded-xl border border-officer-border bg-officer-bg px-3 py-2.5 font-mono text-xs text-white outline-none focus:border-officer-primary"
-              />
-              <p className="text-[11px] text-officer-faint">
-                Install the <span className="text-officer-primary-soft">IP Webcam</span> app on your phone (same Wi-Fi),
-                start the server, and paste its <span className="font-mono">/video</span> URL.
-              </p>
-              <div className="flex gap-2">
-                <Button size="sm" variant="outline" className="flex-1"
-                  onClick={() => setLiveViewOn((v) => !v)} disabled={!liveUrl}>
-                  {liveViewOn ? 'Hide Live View' : 'Live View'}
-                </Button>
-                {!stream.running ? (
-                  <Button size="sm" className="flex-1" disabled={!liveUrl}
-                    onClick={() => { setLiveViewOn(false); stream.startUrl(liveUrl, enhance) }}>
-                    Run AI Detection
-                  </Button>
-                ) : (
-                  <Button size="sm" variant="danger" className="flex-1" onClick={() => stream.stop()}>
-                    Stop Detection
-                  </Button>
-                )}
-              </div>
-            </div>
-          )}
-
-          <Switch checked={enhance} onChange={setEnhance} label="🎚 Enhance (low-light)" />
-          <p className="rounded-xl border border-officer-border bg-officer-bg/40 p-3 text-xs text-officer-muted">
-            Detection runs on <span className="text-officer-primary-soft">every frame</span> and flags all
-            violation types (helmet, signal, speed, wrong-side, parking…) in a single pass.
-          </p>
-
-          {stream.running && (
-            <div>
-              <div className="mb-2 flex justify-between font-mono text-xs text-officer-muted">
-                <span>Processing… {stream.violations.length} violation(s) found</span>
-                <span>{stream.progress}%</span>
-              </div>
-              <div className="h-2 overflow-hidden rounded-full bg-officer-border">
-                <motion.div
-                  className="h-full bg-officer-primary"
-                  animate={{ width: `${stream.progress}%` }}
-                />
-              </div>
-            </div>
-          )}
-
-          {stream.error && (
-            <p className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-300">
-              ⚠️ {stream.error}
-            </p>
-          )}
-          {stream.done && !stream.running && !stream.error && (
-            <p className="rounded-xl border border-officer-mint/30 bg-officer-mint/10 p-3 text-xs text-officer-mint">
-              ✓ Analysis complete — {stream.violations.length} violation(s) detected. Emails dispatched for issued challans.
-            </p>
-          )}
-
-          {mode === 'upload' && (
-            <Button
-              size="lg"
-              className="w-full"
-              disabled={!file}
-              loading={stream.running}
-              onClick={analyse}
-            >
-              Analyse
-            </Button>
-          )}
-        </Card>
-      </div>
-
+      {/* Emergency banner */}
       <AnimatePresence>
-        {(alert || stream.emergency) && (
+        {emergency && (
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 20 }}
-            className="fixed bottom-6 left-1/2 z-50 flex w-[min(92vw,720px)] -translate-x-1/2 items-center gap-4 rounded-xl border border-red-500/30 border-l-4 border-l-red-500 bg-officer-surface px-5 py-4 shadow-2xl"
+            initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
+            className="overflow-hidden"
           >
-            <AlertTriangle className="h-5 w-5 text-red-400 animate-pulse shrink-0" />
-            <div className="flex-1">
-              <p className="font-semibold text-red-300">
-                {(stream.emergency?.vehicle ?? 'AMBULANCE').toUpperCase()} DETECTED
-              </p>
-              <p className="text-sm text-officer-muted">
-                {stream.emergency
-                  ? `${stream.emergency.camera} · ${stream.emergency.location} · Alert sent to ${stream.emergency.checkpost}`
-                  : 'CAM-05 · MG Road Junction · Alert sent to Checkpost 7'}
-              </p>
+            <div className="glass rounded-xl border border-crimson/30 p-4 flex items-center gap-4 animate-border-glow">
+              <AlertTriangle className="h-6 w-6 text-crimson animate-dot-pulse shrink-0" />
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-crimson">
+                  🚨 Emergency Vehicle: {emergency.vehicle.toUpperCase()} detected at {emergency.camera}
+                </p>
+                <p className="text-xs text-text-muted mt-0.5">Checkpost {emergency.checkpost} alerted · Green corridor initiated</p>
+              </div>
+              <MagneticButton variant="danger" size="sm" onClick={() => setEmergency(null)}>
+                <X className="h-4 w-4" /> Dismiss
+              </MagneticButton>
             </div>
-            <Button size="sm" variant="outline" onClick={() => { setAlert(false); stream.setEmergency(null) }}>Dismiss</Button>
-            <Link to="/officer/emergencies">
-              <Button size="sm" variant="danger">View</Button>
-            </Link>
           </motion.div>
         )}
       </AnimatePresence>
+
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+        {/* ── Left: Video feed ── */}
+        <div className="lg:col-span-3 space-y-4">
+          {/* Mode tabs */}
+          <div className="flex gap-2">
+            {[
+              { key: 'cctv' as const, icon: Radio, label: 'Live CCTV' },
+              { key: 'upload' as const, icon: Upload, label: 'Upload File' },
+            ].map((m) => (
+              <button
+                key={m.key}
+                onClick={() => setMode(m.key)}
+                className={cn(
+                  'flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium',
+                  mode === m.key ? 'glass bg-amethyst/10 text-amethyst-light' : 'text-text-muted hover:text-text-primary hover:bg-white/[0.03]',
+                )}
+              >
+                <m.icon className="h-4 w-4" /> {m.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Feed area */}
+          <Card className="relative overflow-hidden aspect-video flex items-center justify-center bg-void/50">
+            {frame ? (
+              <>
+                <img src={frame} alt="Live feed" className="w-full h-full object-contain" />
+                {/* HUD overlay */}
+                <div className="absolute top-3 left-3 flex items-center gap-2">
+                  <Badge variant="danger" dot>LIVE</Badge>
+                  {progress > 0 && progress < 100 && (
+                    <Badge variant="info">{progress}%</Badge>
+                  )}
+                </div>
+                <div className="absolute top-3 right-3">
+                  <Badge variant="default">{violations.length} violations</Badge>
+                </div>
+              </>
+            ) : (
+              <div className="text-center p-8">
+                {mode === 'cctv' ? (
+                  <div className="space-y-4">
+                    <Radio className="h-12 w-12 text-text-faint mx-auto" />
+                    <p className="text-text-muted">Enter IP Webcam URL or connect CCTV feed</p>
+                    <div className="flex gap-2 max-w-md mx-auto">
+                      <input
+                        value={streamUrl}
+                        onChange={(e) => setStreamUrl(e.target.value)}
+                        placeholder="http://192.168.1.x:8080/video"
+                        className="flex-1 h-10 rounded-xl px-4 text-sm bg-white/[0.03] border border-border-glass text-text-primary placeholder:text-text-faint outline-none focus:ring-2 focus:ring-amethyst/30"
+                      />
+                      <MagneticButton onClick={handleStream} loading={running} icon={<Play className="h-4 w-4" />}>
+                        Connect
+                      </MagneticButton>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <Upload className="h-12 w-12 text-text-faint mx-auto" />
+                    <p className="text-text-muted">Drop a video or image for AI analysis</p>
+                    <input ref={fileRef} type="file" accept="video/*,image/*" onChange={handleFile} className="hidden" />
+                    <MagneticButton onClick={() => fileRef.current?.click()} loading={running} icon={<Upload className="h-4 w-4" />}>
+                      Select File
+                    </MagneticButton>
+                  </div>
+                )}
+              </div>
+            )}
+            {running && (
+              <div className="absolute bottom-0 inset-x-0 h-1 bg-white/10">
+                <motion.div className="h-full bg-amethyst" animate={{ width: `${progress}%` }} transition={{ type: 'spring', stiffness: 50 }} />
+              </div>
+            )}
+          </Card>
+
+          {/* Controls */}
+          <div className="flex items-center gap-4 flex-wrap">
+            <Switch checked={enhance} onChange={setEnhance} label="Low-light enhance" />
+
+            {running && (
+              <MagneticButton variant="danger" size="sm" onClick={stop} icon={<Square className="h-3 w-3" />}>
+                Stop
+              </MagneticButton>
+            )}
+            {done && <Badge variant="success">Analysis Complete ✓</Badge>}
+          </div>
+          {error && <p className="text-sm text-crimson bg-crimson/10 rounded-xl px-4 py-2">{error}</p>}
+        </div>
+
+        {/* ── Right: Violation feed ── */}
+        <div className="lg:col-span-2">
+          <Card className="h-full max-h-[calc(100vh-220px)] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-h3 text-text-primary">Violation Feed</h3>
+              <Badge variant="warning" dot>{violations.length}</Badge>
+            </div>
+
+            {violations.length === 0 ? (
+              <div className="text-center py-12 text-text-faint">
+                <Zap className="h-8 w-8 mx-auto mb-2 opacity-30" />
+                <p className="text-sm">Violations will appear here in real-time</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {violations.map((v, i) => (
+                  <motion.div
+                    key={v.challan_id + i}
+                    initial={{ x: 20, opacity: 0 }}
+                    animate={{ x: 0, opacity: 1 }}
+                    transition={{ type: 'spring', stiffness: 200, damping: 25 }}
+                    className="glass rounded-xl p-3 cursor-pointer hover:bg-white/[0.04]"
+                    onClick={() => navigate(`/officer/challans/${v.challan_id}`)}
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <ViolationBadge violation={v.violation} />
+                      <span className="font-mono text-xs text-text-faint">{v.challan_id}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-text-muted font-mono">{v.plate || '—'}</span>
+                      <span className="text-text-muted">{(v.confidence * 100).toFixed(0)}% · {inr(v.fine)}</span>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            )}
+          </Card>
+        </div>
+      </div>
     </div>
   )
 }

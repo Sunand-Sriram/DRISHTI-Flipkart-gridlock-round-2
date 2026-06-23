@@ -27,7 +27,7 @@ OUTBOX = Path(__file__).resolve().parent / "outbox"
 OUTBOX.mkdir(exist_ok=True)
 OUTBOX_INDEX = OUTBOX / "index.json"
 
-PORTAL_URL = os.environ.get("DRISHTI_PORTAL_URL", "http://localhost:5173")
+PORTAL_URL = os.environ.get("DRISHTI_PORTAL_URL", "http://localhost:5174")
 MAIL_FROM = os.environ.get("DRISHTI_MAIL_FROM", "DRISHTI Traffic Police <no-reply@drishti.gov.in>")
 
 VIOLATION_LABEL = {

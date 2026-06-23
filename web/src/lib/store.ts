@@ -77,19 +77,29 @@ function readOfficers(): OfficerAccount[] {
   }
 }
 
-// Seed a default officer so login always works out of the box.
+// Seed the demo officer roster so the documented logins work out of the box.
+// Mirrors the backend demo_accounts.OFFICERS (shared password for the demo).
+const DEMO_OFFICERS: OfficerAccount[] = [
+  { name: 'SI Ramesh Kumar', badge: 'KA-1024', email: 'ramesh.kumar@drishti.gov.in', station: 'Indiranagar Traffic PS', password: 'drishti123' },
+  { name: 'SI Priya Sharma', badge: 'KA-1098', email: 'priya.sharma@drishti.gov.in', station: 'MG Road Traffic PS', password: 'drishti123' },
+  { name: 'ASI Anil Reddy', badge: 'KA-2210', email: 'anil.reddy@drishti.gov.in', station: 'Silk Board Traffic PS', password: 'drishti123' },
+  { name: 'PI Meera Nair', badge: 'KA-0471', email: 'meera.nair@drishti.gov.in', station: 'Koramangala Traffic PS', password: 'drishti123' },
+  { name: 'HC Suresh Gowda', badge: 'KA-3355', email: 'suresh.gowda@drishti.gov.in', station: 'Hebbal Traffic PS', password: 'drishti123' },
+  { name: 'Insp. Vikram Singh', badge: 'KA-0012', email: 'admin@drishti.gov.in', station: 'Traffic HQ, Bengaluru', password: 'drishti123' },
+  // legacy convenience account
+  { name: 'SI Ramesh Kumar', badge: 'KA-1024', email: 'officer@drishti.gov.in', station: 'Indiranagar Traffic PS', password: 'drishti123' },
+]
+
 function seededOfficers(): OfficerAccount[] {
   const list = readOfficers()
-  if (!list.some((o) => o.email === 'officer@drishti.gov.in')) {
-    list.push({
-      name: 'SI Ramesh Kumar',
-      badge: 'KA-1024',
-      email: 'officer@drishti.gov.in',
-      station: 'Indiranagar Traffic PS',
-      password: 'drishti123',
-    })
-    localStorage.setItem('drishti_officers', JSON.stringify(list))
+  let changed = false
+  for (const demo of DEMO_OFFICERS) {
+    if (!list.some((o) => o.email.toLowerCase() === demo.email)) {
+      list.push(demo)
+      changed = true
+    }
   }
+  if (changed) localStorage.setItem('drishti_officers', JSON.stringify(list))
   return list
 }
 

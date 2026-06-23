@@ -1,36 +1,68 @@
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
-import { CitizenLayout } from '@/components/layout/CitizenLayout'
-import { OfficerLayout } from '@/components/layout/OfficerLayout'
-import LandingPage from '@/pages/Landing'
-import CitizenLogin from '@/pages/citizen/CitizenLogin'
-import ContestChallan from '@/pages/citizen/ContestChallan'
-import History from '@/pages/citizen/History'
-import MyChallan from '@/pages/citizen/MyChallan'
-import PayNow from '@/pages/citizen/PayNow'
-import Receipt from '@/pages/citizen/Receipt'
-import PaymentHistory from '@/pages/citizen/PaymentHistory'
-import Help from '@/pages/citizen/Help'
-import Notifications from '@/pages/citizen/Notifications'
-import Analytics from '@/pages/officer/Analytics'
-import CameraManagement from '@/pages/officer/CameraManagement'
-import ChallanDetail from '@/pages/officer/ChallanDetail'
-import ChallanList from '@/pages/officer/ChallanList'
-import ChatAnalytics from '@/pages/officer/ChatAnalytics'
-import ContestedQueue from '@/pages/officer/ContestedQueue'
-import Emergencies from '@/pages/officer/Emergencies'
-import LiveMap from '@/pages/officer/LiveMap'
-import LiveMonitor from '@/pages/officer/LiveMonitor'
-import OfficerLogin from '@/pages/officer/OfficerLogin'
-import Outbox from '@/pages/officer/Outbox'
-import ReviewQueue from '@/pages/officer/ReviewQueue'
+import { lazy, Suspense } from 'react'
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom'
+import { AnimatePresence } from 'framer-motion'
+import { LenisProvider } from '@/components/effects/LenisProvider'
+import { NoiseOverlay } from '@/components/effects/NoiseOverlay'
+import { ToastProvider } from '@/components/ui/Toast'
 
-export default function App() {
+/* ── Layouts ────────────────────────────────────────────────────────────── */
+const OfficerLayout = lazy(() => import('@/components/layout/OfficerLayout'))
+const CitizenLayout = lazy(() => import('@/components/layout/CitizenLayout'))
+
+/* ── Landing ────────────────────────────────────────────────────────────── */
+const Landing = lazy(() => import('@/pages/Landing'))
+
+/* ── Officer pages ──────────────────────────────────────────────────────── */
+const OfficerLogin    = lazy(() => import('@/pages/officer/OfficerLogin'))
+const LiveMonitor     = lazy(() => import('@/pages/officer/LiveMonitor'))
+const ReviewQueue     = lazy(() => import('@/pages/officer/ReviewQueue'))
+const ContestedQueue  = lazy(() => import('@/pages/officer/ContestedQueue'))
+const Emergencies     = lazy(() => import('@/pages/officer/Emergencies'))
+const ChallanList     = lazy(() => import('@/pages/officer/ChallanList'))
+const ChallanDetail   = lazy(() => import('@/pages/officer/ChallanDetail'))
+const Analytics       = lazy(() => import('@/pages/officer/Analytics'))
+const ChatAnalytics   = lazy(() => import('@/pages/officer/ChatAnalytics'))
+const LiveMap         = lazy(() => import('@/pages/officer/LiveMap'))
+const CameraManagement = lazy(() => import('@/pages/officer/CameraManagement'))
+const Outbox          = lazy(() => import('@/pages/officer/Outbox'))
+
+/* ── Citizen pages ──────────────────────────────────────────────────────── */
+const CitizenLogin    = lazy(() => import('@/pages/citizen/CitizenLogin'))
+const MyChallan       = lazy(() => import('@/pages/citizen/MyChallan'))
+const PayNow          = lazy(() => import('@/pages/citizen/PaymentGateway'))
+const ContestChallan  = lazy(() => import('@/pages/citizen/ContestForm'))
+const Receipt         = lazy(() => import('@/pages/citizen/Receipt'))
+const History         = lazy(() => import('@/pages/citizen/ViolationHistory'))
+const PaymentHistory  = lazy(() => import('@/pages/citizen/PaymentHistory'))
+const Notifications   = lazy(() => import('@/pages/citizen/Notifications'))
+const Help            = lazy(() => import('@/pages/citizen/Help'))
+
+/* ── Loading fallback ───────────────────────────────────────────────────── */
+function LoadingScreen() {
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<LandingPage />} />
+    <div className="fixed inset-0 flex items-center justify-center bg-midnight z-50">
+      <div className="flex flex-col items-center gap-4">
+        <div className="w-12 h-12 rounded-full border-2 border-amethyst/30 border-t-amethyst animate-spin" />
+        <span className="text-label text-text-muted tracking-widest">LOADING</span>
+      </div>
+    </div>
+  )
+}
+
+/* ── Animated routes wrapper ────────────────────────────────────────────── */
+function AnimatedRoutes() {
+  const location = useLocation()
+
+  return (
+    <AnimatePresence mode="wait">
+      <Routes location={location} key={location.pathname}>
+        {/* Landing */}
+        <Route path="/" element={<Landing />} />
+
+        {/* Officer login (standalone, no layout) */}
         <Route path="/officer" element={<OfficerLogin />} />
 
+        {/* Officer portal (with layout) */}
         <Route element={<OfficerLayout />}>
           <Route path="/officer/monitor" element={<LiveMonitor />} />
           <Route path="/officer/review" element={<ReviewQueue />} />
@@ -45,6 +77,7 @@ export default function App() {
           <Route path="/officer/outbox" element={<Outbox />} />
         </Route>
 
+        {/* Citizen portal (with layout) */}
         <Route path="/citizen" element={<CitizenLayout />}>
           <Route index element={<CitizenLogin />} />
           <Route path="challan/:id" element={<MyChallan />} />
@@ -57,8 +90,25 @@ export default function App() {
           <Route path="help" element={<Help />} />
         </Route>
 
+        {/* Catch-all */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+    </AnimatePresence>
+  )
+}
+
+/* ── App root ───────────────────────────────────────────────────────────── */
+export default function App() {
+  return (
+    <BrowserRouter>
+      <LenisProvider>
+        <ToastProvider>
+          <NoiseOverlay opacity={0.03} />
+          <Suspense fallback={<LoadingScreen />}>
+            <AnimatedRoutes />
+          </Suspense>
+        </ToastProvider>
+      </LenisProvider>
     </BrowserRouter>
   )
 }

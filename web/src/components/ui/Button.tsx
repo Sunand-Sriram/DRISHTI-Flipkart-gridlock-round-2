@@ -1,52 +1,62 @@
-import { forwardRef, type ButtonHTMLAttributes } from 'react'
-import { motion } from 'framer-motion'
+import { type ButtonHTMLAttributes, type ReactNode } from 'react'
+import { motion, type HTMLMotionProps } from 'framer-motion'
+import { Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-type Variant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger' | 'success' | 'citizen'
-type Size = 'sm' | 'md' | 'lg'
+const variantStyles = {
+  primary: 'bg-gradient-to-r from-amethyst to-amethyst-light text-white shadow-lg shadow-amethyst/20',
+  outline: 'glass border-amethyst/30 text-amethyst-light hover:bg-amethyst/10',
+  ghost: 'text-text-secondary hover:bg-white/[0.04] hover:text-text-primary',
+  danger: 'bg-crimson/15 text-crimson border border-crimson/20 hover:bg-crimson/25',
+  success: 'bg-emerald/15 text-emerald border border-emerald/20 hover:bg-emerald/25',
+  citizen: 'bg-citizen-primary text-white shadow-lg shadow-citizen-primary/20 hover:bg-citizen-primary-dark',
+  secondary: 'bg-surface text-text-secondary border border-border-glass hover:bg-surface-2',
+}
 
-interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: Variant
-  size?: Size
+const sizeStyles = {
+  sm: 'h-8 text-xs px-3 gap-1.5 rounded-lg',
+  md: 'h-10 text-sm px-4 gap-2 rounded-xl',
+  lg: 'h-12 text-base px-6 gap-2.5 rounded-xl font-semibold',
+}
+
+interface ButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'style'> {
+  variant?: keyof typeof variantStyles
+  size?: keyof typeof sizeStyles
   loading?: boolean
+  icon?: ReactNode
 }
 
-const variants: Record<Variant, string> = {
-  primary: 'bg-officer-primary text-white hover:bg-amber-500 shadow-lg shadow-amber-500/20',
-  secondary: 'bg-officer-surface text-white border border-officer-border hover:border-amber-500/40',
-  outline: 'border border-officer-border text-officer-muted hover:border-amber-500/50 hover:text-white bg-transparent',
-  ghost: 'text-officer-muted hover:text-white hover:bg-white/5',
-  danger: 'bg-red-500/15 text-red-400 border border-red-500/30 hover:bg-red-500/25',
-  success: 'bg-emerald-500 text-officer-bg hover:bg-emerald-400',
-  citizen: 'bg-citizen-primary text-white hover:bg-amber-900 shadow-lg shadow-amber-900/15',
-}
-
-const sizes: Record<Size, string> = {
-  sm: 'h-9 px-3 text-sm rounded-lg',
-  md: 'h-11 px-5 text-sm rounded-xl',
-  lg: 'h-13 px-6 text-base rounded-xl',
-}
-
-export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant = 'primary', size = 'md', loading, disabled, children, ...props }, ref) => (
-    <motion.div whileHover={{ scale: disabled || loading ? 1 : 1.02 }} whileTap={{ scale: disabled || loading ? 1 : 0.98 }} transition={{ type: 'spring', stiffness: 400, damping: 25 }}>
-      <button
-        ref={ref}
-        className={cn(
-          'inline-flex items-center justify-center gap-2 font-medium transition-colors disabled:opacity-50 disabled:pointer-events-none',
-          variants[variant],
-          sizes[size],
-          className
-        )}
-        disabled={disabled || loading}
-        {...props}
-      >
-        {loading && (
-          <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-        )}
-        {children}
-      </button>
-    </motion.div>
+export function Button({
+  variant = 'primary',
+  size = 'md',
+  loading,
+  icon,
+  children,
+  className,
+  disabled,
+  ...props
+}: ButtonProps) {
+  return (
+    <motion.button
+      whileHover={{ scale: 1.02 }}
+      whileTap={{ scale: 0.98 }}
+      transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+      disabled={disabled || loading}
+      className={cn(
+        'relative inline-flex items-center justify-center font-medium font-display select-none',
+        'disabled:opacity-50 disabled:pointer-events-none',
+        variantStyles[variant],
+        sizeStyles[size],
+        className,
+      )}
+      {...(props as HTMLMotionProps<'button'>)}
+    >
+      {loading ? (
+        <Loader2 className="h-4 w-4 animate-spin" />
+      ) : icon ? (
+        <span className="shrink-0">{icon}</span>
+      ) : null}
+      {children}
+    </motion.button>
   )
-)
-Button.displayName = 'Button'
+}

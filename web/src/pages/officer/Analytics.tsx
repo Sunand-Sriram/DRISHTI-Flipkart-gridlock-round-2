@@ -1,149 +1,138 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import {
-  Area,
-  AreaChart,
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Line,
-  LineChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts'
-import { BentoCard, BentoGrid } from '@/components/ui/BentoGrid'
-import { Button } from '@/components/ui/Button'
-import { Select } from '@/components/ui/Select'
+import { BarChart, Bar, AreaChart, Area, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
+import { Download, MessageSquare, Activity, DollarSign, Users, TrendingUp } from 'lucide-react'
+import { KPICard } from '@/components/ui/KPICard'
+import { Card } from '@/components/ui/Card'
+import { MagneticButton } from '@/components/motion/MagneticButton'
+import { BentoGrid } from '@/components/ui/BentoGrid'
 import { useSummary, useHourly, useTrend } from '@/lib/hooks'
-import { VIOLATION_LABEL, inr, downloadCSV } from '@/lib/utils'
+import { downloadCSV, VIOLATION_LABEL } from '@/lib/utils'
+
+const PERIODS = [
+  { label: '7D', days: 7 },
+  { label: '30D', days: 30 },
+  { label: '90D', days: 90 },
+  { label: 'All', days: 0 },
+]
 
 export default function Analytics() {
-  const [range, setRange] = useState('7')
-  const days = Number(range)
+  const [days, setDays] = useState(7)
   const { data: summary } = useSummary(days)
   const { data: hourly } = useHourly(days)
-  const { data: finesTrend } = useTrend(days)
+  const { data: trend } = useTrend(days)
 
-  const kpis = [
-    { label: 'Total Challans', value: (summary?.total ?? 0).toLocaleString(), change: '+12%' },
-    { label: 'Fines Collected', value: inr(summary?.fines_collected ?? 0), change: '+8%' },
-    { label: 'Repeat Offenders', value: String(summary?.repeat_offenders ?? 0), change: '-3%' },
-    { label: 'Avg Fine / Case', value: inr(summary?.avg_fine ?? 0), change: '+5%' },
-  ]
-  const violationsByType = (summary?.by_type ?? []).map((v) => ({
-    type: VIOLATION_LABEL[v.type] ?? v.type, count: v.count,
-  }))
-  const hourlyData = hourly ?? []
-  const cameraPerf = summary?.by_camera ?? []
-  const maxCam = Math.max(1, ...cameraPerf.map((c) => c.count))
+  const exportReport = () => {
+    if (!summary) return
+    downloadCSV('analytics_report', [
+      ['Metric', 'Value'],
+      ['Total Challans', summary.total],
+      ['Fines Collected', summary.fines_collected],
+      ['Repeat Offenders', summary.repeat_offenders],
+      ['Avg Fine', summary.avg_fine],
+      ...summary.by_type.map((t) => [`${VIOLATION_LABEL[t.type] || t.type}`, t.count]),
+    ])
+  }
 
   return (
-    <div className="space-y-8">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <Select
-          value={range}
-          onChange={(e) => setRange(e.target.value)}
-          options={[
-            { value: '7', label: 'Last 7 days' },
-            { value: '30', label: 'Last 30 days' },
-            { value: '90', label: 'Last 90 days' },
-          ]}
-        />
-        <div className="flex gap-2">
-          <Link to="/officer/chat"><Button>Ask DrishtiBot</Button></Link>
-          <Button
-            variant="outline"
-            onClick={() => {
-              const rows = [
-                ['Metric', 'Value'],
-                ...kpis.map((k) => [k.label, k.value] as [string, string]),
-                ['', ''],
-                ['Violation Type', 'Count'],
-                ...violationsByType.map((v) => [v.type, v.count] as [string, number]),
-                ['', ''],
-                ['Camera', 'Violations'],
-                ...cameraPerf.map((c) => [c.camera, c.count] as [string, number]),
-              ]
-              downloadCSV(`drishti-analytics-${new Date().toISOString().slice(0, 10)}`, rows)
-            }}
-          >
-            Export Report
-          </Button>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between flex-wrap gap-4">
+        <h2 className="text-h2 text-text-primary">Analytics</h2>
+        <div className="flex items-center gap-2">
+          <div className="flex gap-1 p-1 rounded-xl bg-white/[0.03]">
+            {PERIODS.map((p) => (
+              <button
+                key={p.days}
+                onClick={() => setDays(p.days)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${days === p.days ? 'bg-amethyst/15 text-amethyst-light' : 'text-text-muted hover:text-text-primary'}`}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+          <MagneticButton variant="outline" size="sm" onClick={exportReport} icon={<Download className="h-4 w-4" />}>
+            CSV
+          </MagneticButton>
+          <Link to="/officer/chat">
+            <MagneticButton variant="ghost" size="sm" icon={<MessageSquare className="h-4 w-4" />}>
+              DrishtiBot
+            </MagneticButton>
+          </Link>
         </div>
       </div>
 
+      {/* KPI Cards */}
       <BentoGrid cols={4}>
-        {kpis.map((k) => (
-          <BentoCard key={k.label}>
-            <p className="text-3xl font-bold font-mono text-white">{k.value}</p>
-            <p className="mt-1 text-sm text-officer-muted">{k.label}</p>
-            <p className="mt-2 text-xs text-officer-mint">{k.change}</p>
-          </BentoCard>
-        ))}
+        <KPICard label="Total Challans" value={summary?.total || 0} icon={<Activity className="h-5 w-5" />} />
+        <KPICard label="Fines Collected" value={summary?.fines_collected || 0} prefix="₹" icon={<DollarSign className="h-5 w-5" />} />
+        <KPICard label="Repeat Offenders" value={summary?.repeat_offenders || 0} icon={<Users className="h-5 w-5" />} />
+        <KPICard label="Avg Fine" value={summary?.avg_fine || 0} prefix="₹" icon={<TrendingUp className="h-5 w-5" />} />
       </BentoGrid>
 
-      <BentoGrid cols={2}>
-        <BentoCard scrollable span={1}>
-          <h3 className="mb-4 font-semibold">Violations by Type</h3>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Violations by type */}
+        <Card>
+          <h3 className="text-h3 text-text-primary mb-4">Violations by Type</h3>
           <ResponsiveContainer width="100%" height={280}>
-            <BarChart data={violationsByType} layout="vertical">
-              <CartesianGrid strokeDasharray="3 3" stroke="#1c2740" />
-              <XAxis type="number" stroke="#9ca3af" fontSize={11} />
-              <YAxis dataKey="type" type="category" width={90} stroke="#9ca3af" fontSize={11} />
-              <Tooltip contentStyle={{ background: '#0f1932', border: '1px solid #1c2740' }} />
-              <Bar dataKey="count" fill="#ffa733" radius={[0, 4, 4, 0]} />
+            <BarChart data={summary?.by_type.map((t) => ({ name: VIOLATION_LABEL[t.type] || t.type, count: t.count })) || []}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="name" tick={{ fontSize: 10 }} angle={-30} textAnchor="end" height={60} />
+              <YAxis tick={{ fontSize: 11 }} />
+              <Tooltip />
+              <Bar dataKey="count" fill="#14B8A6" radius={[6, 6, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
-        </BentoCard>
+        </Card>
 
-        <BentoCard scrollable>
-          <h3 className="mb-4 font-semibold">Hourly Distribution</h3>
+        {/* Hourly distribution */}
+        <Card>
+          <h3 className="text-h3 text-text-primary mb-4">Hourly Distribution</h3>
           <ResponsiveContainer width="100%" height={280}>
-            <AreaChart data={hourlyData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#1c2740" />
-              <XAxis dataKey="hour" stroke="#9ca3af" fontSize={11} />
-              <YAxis stroke="#9ca3af" fontSize={11} />
-              <Tooltip contentStyle={{ background: '#0f1932', border: '1px solid #1c2740' }} />
-              <Area type="monotone" dataKey="count" stroke="#ffa733" fill="#ffa733" fillOpacity={0.25} />
+            <AreaChart data={hourly || []}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="hour" tick={{ fontSize: 11 }} tickFormatter={(h) => `${h}:00`} />
+              <YAxis tick={{ fontSize: 11 }} />
+              <Tooltip />
+              <Area type="monotone" dataKey="count" stroke="#22D3EE" fill="#22D3EE" fillOpacity={0.15} strokeWidth={2} />
             </AreaChart>
           </ResponsiveContainer>
-        </BentoCard>
+        </Card>
 
-        <BentoCard scrollable>
-          <h3 className="mb-4 font-semibold">Camera Performance</h3>
-          <div className="space-y-4">
-            {cameraPerf.map((cam) => (
-              <div key={cam.camera}>
-                <div className="mb-1 flex justify-between text-sm">
-                  <span className="font-mono">{cam.camera}</span>
-                  <span className="font-mono text-amber-300">{cam.count}</span>
-                </div>
-                <div className="h-2 overflow-hidden rounded-full bg-officer-border">
-                  <div
-                    className="h-full rounded-full bg-officer-primary"
-                    style={{ width: `${(cam.count / maxCam) * 100}%` }}
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-        </BentoCard>
-
-        <BentoCard scrollable>
-          <h3 className="mb-4 font-semibold">Fine Collection Trend</h3>
+        {/* Trend line */}
+        <Card className="lg:col-span-2">
+          <h3 className="text-h3 text-text-primary mb-4">Daily Trend</h3>
           <ResponsiveContainer width="100%" height={280}>
-            <LineChart data={finesTrend ?? []}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#1c2740" />
-              <XAxis dataKey="date" stroke="#9ca3af" fontSize={11} />
-              <YAxis stroke="#9ca3af" fontSize={11} tickFormatter={(v) => `₹${v / 100000}L`} />
-              <Tooltip contentStyle={{ background: '#0f1932', border: '1px solid #1c2740' }} formatter={(v) => inr(Number(v))} />
-              <Line type="monotone" dataKey="amount" stroke="#34d399" strokeWidth={2} dot={{ fill: '#ffa733' }} />
+            <LineChart data={trend || []}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="date" tick={{ fontSize: 11 }} />
+              <YAxis yAxisId="count" tick={{ fontSize: 11 }} />
+              <YAxis yAxisId="amount" orientation="right" tick={{ fontSize: 11 }} />
+              <Tooltip />
+              <Line yAxisId="count" type="monotone" dataKey="count" stroke="#14B8A6" strokeWidth={2} dot={false} />
+              <Line yAxisId="amount" type="monotone" dataKey="amount" stroke="#34D399" strokeWidth={2} dot={false} />
             </LineChart>
           </ResponsiveContainer>
-        </BentoCard>
-      </BentoGrid>
+        </Card>
+
+        {/* Camera performance */}
+        <Card className="lg:col-span-2">
+          <h3 className="text-h3 text-text-primary mb-4">Camera Performance</h3>
+          <div className="space-y-3">
+            {(summary?.by_camera || []).map((cam) => {
+              const pct = summary ? (cam.count / summary.total) * 100 : 0
+              return (
+                <div key={cam.camera} className="flex items-center gap-4">
+                  <span className="text-sm text-text-muted w-20 shrink-0">{cam.camera}</span>
+                  <div className="flex-1 h-3 rounded-full bg-white/[0.05] overflow-hidden">
+                    <div className="h-full rounded-full bg-gradient-to-r from-amethyst to-cyan" style={{ width: `${pct}%` }} />
+                  </div>
+                  <span className="text-sm font-mono text-text-secondary w-16 text-right">{cam.count}</span>
+                </div>
+              )
+            })}
+          </div>
+        </Card>
+      </div>
     </div>
   )
 }

@@ -4,7 +4,7 @@ import type {
 } from './types'
 
 export const API =
-  (import.meta.env.VITE_API_URL as string) || 'http://localhost:8000'
+  (import.meta.env.VITE_API_URL as string) || 'http://localhost:8001'
 
 export interface Page<T> { items: T[]; total: number; page: number }
 export interface Summary {

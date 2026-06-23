@@ -1,46 +1,44 @@
-import { motion } from 'framer-motion'
+import { type ReactNode, type HTMLAttributes } from 'react'
 import { cn } from '@/lib/utils'
 
-interface CardProps {
-  children: React.ReactNode
+interface CardProps extends HTMLAttributes<HTMLDivElement> {
+  children: ReactNode
   className?: string
   citizen?: boolean
   hover?: boolean
-  padding?: boolean
 }
 
-export function Card({ children, className, citizen, hover, padding = true }: CardProps) {
-  const Wrapper = hover ? motion.div : 'div'
-  const motionProps = hover
-    ? {
-        whileHover: { y: -2, transition: { type: 'spring' as const, stiffness: 300, damping: 20 } },
-      }
-    : {}
-
+export function Card({ children, className, citizen, hover = true, ...rest }: CardProps) {
   return (
-    <Wrapper
-      {...motionProps}
+    <div
       className={cn(
-        'rounded-2xl border',
-        padding && 'p-[clamp(1rem,3vw,1.75rem)]',
-        citizen
-          ? 'border-slate-100 bg-citizen-surface shadow-sm shadow-amber-900/5'
-          : 'border-officer-border bg-officer-surface',
-        className
+        'rounded-2xl p-6',
+        citizen ? 'glass-citizen' : 'glass',
+        hover && (citizen ? 'glass-citizen-hover' : 'glass-hover'),
+        className,
       )}
+      {...rest}
     >
       {children}
-    </Wrapper>
+    </div>
   )
 }
 
-export function CardHeader({ children, className }: { children: React.ReactNode; className?: string }) {
-  return <div className={cn('mb-4 flex flex-col gap-1', className)}>{children}</div>
+interface CardTitleProps {
+  children: ReactNode
+  className?: string
+  gradient?: boolean
 }
 
-export function CardTitle({ children, className, citizen }: { children: React.ReactNode; className?: string; citizen?: boolean }) {
+export function CardTitle({ children, className, gradient }: CardTitleProps) {
   return (
-    <h3 className={cn('text-lg font-semibold tracking-tight', citizen ? 'text-citizen-primary' : 'text-white', className)}>
+    <h3
+      className={cn(
+        'text-h3',
+        gradient ? 'text-gradient-amethyst' : 'text-text-primary',
+        className,
+      )}
+    >
       {children}
     </h3>
   )

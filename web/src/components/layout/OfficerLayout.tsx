@@ -1,274 +1,211 @@
-import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
-import { motion } from 'framer-motion'
+import { useState, useEffect } from 'react'
+import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom'
+import { motion, AnimatePresence } from 'framer-motion'
 import {
-  AlertTriangle,
-  BarChart3,
-  Bell,
-  Camera,
-  ClipboardList,
-  LayoutDashboard,
-  LogOut,
-  Mail,
-  MapPin,
-  Menu,
-  MessageSquare,
-  Radio,
-  Shield,
+  MonitorPlay, ClipboardList, Scale, AlertTriangle, FileText, BarChart3,
+  MessageSquare, Map, Camera, Mail, LogOut, ChevronLeft, Bell, Menu,
 } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
 import { DrishtiLogo } from '@/components/ui/DrishtiLogo'
-import { cn } from '@/lib/utils'
-import { getOfficer, getRole } from '@/lib/store'
-import { useCameras, useChallans, useEmergencies } from '@/lib/hooks'
+import { Badge } from '@/components/ui/Badge'
+import { SceneBackground } from '@/components/three/SceneBackground'
+import { getOfficer, officerLogout } from '@/lib/store'
 import { api, type Notification } from '@/lib/api'
-import { AnimatePresence } from 'framer-motion'
-import { useNavigate } from 'react-router-dom'
+import { cn } from '@/lib/utils'
 
-const nav = [
-  { to: '/officer/monitor', label: 'Live Monitor', icon: Radio, section: 'Operations' },
-  { to: '/officer/review', label: 'Review Queue', icon: LayoutDashboard, badgeKey: 'review' },
-  { to: '/officer/contested', label: 'Contested', icon: Shield },
-  { to: '/officer/emergencies', label: 'Emergencies', icon: AlertTriangle, dotKey: 'emergency' },
-  { to: '/officer/challans', label: 'Challans', icon: ClipboardList },
-  { to: '/officer/analytics', label: 'Analytics', icon: BarChart3, section: 'Intelligence' },
-  { to: '/officer/chat', label: 'Ask DrishtiBot', icon: MessageSquare },
-  { to: '/officer/map', label: 'Live Map', icon: MapPin },
-  { to: '/officer/cameras', label: 'Cameras', icon: Camera },
-  { to: '/officer/outbox', label: 'Email Outbox', icon: Mail },
+const NAV_ITEMS = [
+  { path: '/officer/monitor', label: 'Live Monitor', icon: MonitorPlay },
+  { path: '/officer/review', label: 'Review Queue', icon: ClipboardList, badge: 'review' },
+  { path: '/officer/contested', label: 'Contested', icon: Scale },
+  { path: '/officer/emergencies', label: 'Emergencies', icon: AlertTriangle, badge: 'emergency' },
+  { path: '/officer/challans', label: 'Challans', icon: FileText },
+  { path: '/officer/analytics', label: 'Analytics', icon: BarChart3 },
+  { path: '/officer/chat', label: 'DrishtiBot', icon: MessageSquare },
+  { path: '/officer/map', label: 'Live Map', icon: Map },
+  { path: '/officer/cameras', label: 'Cameras', icon: Camera },
+  { path: '/officer/outbox', label: 'Email Outbox', icon: Mail },
 ]
 
-const labels: Record<string, string> = {
-  monitor: 'Live Monitor',
-  review: 'Review Queue',
-  contested: 'Contested',
-  emergencies: 'Emergency Alerts',
-  challans: 'Challans',
-  analytics: 'Analytics',
-  chat: 'Chat Analytics',
-  map: 'Live Map',
-  cameras: 'Cameras & Checkposts',
-  outbox: 'Email Outbox',
-}
-
-export function OfficerLayout() {
-  const [collapsed, setCollapsed] = useState(false)
-  const location = useLocation()
+export default function OfficerLayout() {
   const navigate = useNavigate()
-  const segment = location.pathname.split('/').pop() || 'monitor'
-  const role = getRole()
-  const officer = getOfficer()
-  const { data: cameras } = useCameras()
-  const { data: review } = useChallans({ status: 'PENDING_REVIEW', limit: 1 })
-  const { data: emergencies } = useEmergencies('active')
-  const camerasLive = cameras?.filter((c) => c.status === 'live').length ?? 0
-  const reviewCount = review?.total ?? 0
-  const hasEmergency = (emergencies?.length ?? 0) > 0
-
-  // ── notifications ──
-  const [notifs, setNotifs] = useState<Notification[]>([])
+  const location = useLocation()
+  // Read once into stable state — getOfficer() returns a fresh object each call,
+  // so using it directly would change the polling effect's deps every render and
+  // spin an infinite fetch loop.
+  const [officer] = useState(getOfficer)
+  const [collapsed, setCollapsed] = useState(false)
+  const [notifications, setNotifications] = useState<Notification[]>([])
   const [unread, setUnread] = useState(0)
-  const [notifOpen, setNotifOpen] = useState(false)
-  const notifRef = useRef<HTMLDivElement>(null)
+  const [showNotifs, setShowNotifs] = useState(false)
+  const [reviewCount, setReviewCount] = useState(0)
 
-  function loadNotifs() {
-    api.notifications('officer').then((r) => { setNotifs(r.items); setUnread(r.unread) }).catch(() => {})
-  }
   useEffect(() => {
-    loadNotifs()
-    const t = setInterval(loadNotifs, 20000)
-    return () => clearInterval(t)
-  }, [])
-  useEffect(() => {
-    function onClick(e: MouseEvent) {
-      if (notifRef.current && !notifRef.current.contains(e.target as Node)) setNotifOpen(false)
+    if (!officer) { navigate('/officer'); return }
+    const poll = () => {
+      api.notifications('officer').then((r) => {
+        setNotifications(r.items); setUnread(r.unread)
+      }).catch(() => {})
+      api.listChallans({ status: 'PENDING_REVIEW', limit: 1 }).then((r) => {
+        setReviewCount(r.total)
+      }).catch(() => {})
     }
-    document.addEventListener('mousedown', onClick)
-    return () => document.removeEventListener('mousedown', onClick)
-  }, [])
+    poll()
+    const id = setInterval(poll, 20000)
+    return () => clearInterval(id)
+  }, [officer, navigate])
 
-  function openNotifs() {
-    setNotifOpen((o) => !o)
-    if (!notifOpen && unread > 0) {
-      api.markNotificationsRead('officer').then(() => setUnread(0)).catch(() => {})
-    }
-  }
+  const handleLogout = () => { officerLogout(); navigate('/officer') }
 
-  const initials = (officer?.name || 'SI Ramesh K.').split(' ').map((s) => s[0]).slice(0, 2).join('')
-
-  const kindIcon: Record<string, string> = {
-    emergency: '🚨', contest: '⚖️', payment: '💰', challan: '📄', system: '🔔',
-  }
-  function timeAgo(ts: number) {
-    const s = Math.floor(Date.now() / 1000 - ts)
-    if (s < 60) return `${s}s ago`
-    if (s < 3600) return `${Math.floor(s / 60)}m ago`
-    if (s < 86400) return `${Math.floor(s / 3600)}h ago`
-    return `${Math.floor(s / 86400)}d ago`
+  const markRead = () => {
+    api.markNotificationsRead('officer').then(() => setUnread(0)).catch(() => {})
   }
 
   return (
-    <div className="ambient-mesh-officer flex min-h-screen text-white">
-      <aside
-        className={cn(
-          'sticky top-0 flex h-screen flex-col border-r border-officer-border bg-officer-surface/95 backdrop-blur-xl transition-all duration-300',
-          collapsed ? 'w-[72px]' : 'w-[240px]'
-        )}
-      >
-        <div className="flex items-center gap-3 border-b border-officer-border p-5">
-          {!collapsed && <DrishtiLogo size="sm" />}
-          {collapsed && (
-            <div className="mx-auto h-8 w-8 rotate-45 rounded-lg border border-officer-primary/50 grid place-items-center">
-              <span className="h-2 w-2 rotate-[-45deg] rounded-full bg-officer-primary" />
-            </div>
-          )}
-        </div>
-        <nav className="flex-1 overflow-y-auto p-3 space-y-1">
-          {nav.map((item, i) => {
-            const prev = nav[i - 1]
-            const showSection = item.section && item.section !== prev?.section
-            return (
-              <div key={item.to}>
-                {showSection && !collapsed && (
-                  <p className="px-3 pb-2 pt-4 text-[10px] font-mono uppercase tracking-[0.22em] text-officer-muted/70">
-                    {item.section}
-                  </p>
-                )}
-                <NavLink
-                  to={item.to}
-                  className={({ isActive }) =>
-                    cn(
-                      'relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors',
-                      isActive
-                        ? 'bg-amber-500/15 text-amber-200'
-                        : 'text-officer-muted hover:bg-white/5 hover:text-white'
-                    )
-                  }
-                >
-                  {({ isActive }) => (
-                    <>
-                      {isActive && (
-                        <motion.span
-                          layoutId="officer-nav-indicator"
-                          className="absolute left-0 top-2 bottom-2 w-0.5 rounded-full bg-officer-primary"
-                        />
-                      )}
-                      <item.icon className="h-[18px] w-[18px] shrink-0" />
-                      {!collapsed && (
-                        <>
-                          <span className="truncate">{item.label}</span>
-                          {item.badgeKey === 'review' && reviewCount > 0 && (
-                            <span className="ml-auto font-mono text-[10px] rounded-full bg-officer-primary px-1.5 py-0.5 text-white">
-                              {reviewCount}
-                            </span>
-                          )}
-                          {item.dotKey === 'emergency' && hasEmergency && (
-                            <span className="ml-auto h-2 w-2 rounded-full bg-red-500 animate-pulse" />
-                          )}
-                        </>
-                      )}
-                    </>
-                  )}
-                </NavLink>
-              </div>
-            )
-          })}
-        </nav>
-        {!collapsed && (
-          <div className="border-t border-officer-border p-4 space-y-3">
-            <div className="flex items-center gap-2 text-xs text-officer-mint">
-              <span className="h-2 w-2 rounded-full bg-officer-mint animate-pulse" />
-              {camerasLive} cameras live
-            </div>
-            <div className="flex items-center gap-3 rounded-xl border border-officer-border bg-officer-bg/50 p-3">
-              <div className="grid h-8 w-8 place-items-center rounded-lg bg-gradient-to-br from-amber-500 to-amber-700 text-xs font-bold text-black">
-                {initials}
-              </div>
-              <div className="min-w-0">
-                <p className="truncate text-sm font-medium">{officer?.name || 'SI Ramesh Kumar'}</p>
-                <p className="text-[10px] text-officer-muted capitalize">{officer?.badge || role || 'Officer'}</p>
-              </div>
-            </div>
-          </div>
-        )}
-      </aside>
+    <div className="flex h-screen overflow-hidden ambient-officer">
+      <SceneBackground variant="officer" />
 
-      <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-40 flex h-16 items-center gap-4 border-b border-officer-border bg-officer-surface/90 px-[clamp(1rem,3vw,1.75rem)] backdrop-blur-xl">
+      {/* ── Sidebar ── */}
+      <motion.aside
+        animate={{ width: collapsed ? 72 : 260 }}
+        transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+        className="relative z-20 flex flex-col border-r border-border-glass bg-void/80 backdrop-blur-xl shrink-0"
+      >
+        {/* Logo */}
+        <div className="flex items-center justify-between h-16 px-4 border-b border-border-glass">
+          {!collapsed && <DrishtiLogo size="md" animate />}
           <button
-            type="button"
             onClick={() => setCollapsed(!collapsed)}
-            className="rounded-lg border border-officer-border p-2 text-officer-muted hover:text-white"
+            className="p-2 rounded-lg hover:bg-white/[0.04] text-text-muted hover:text-text-primary"
           >
-            <Menu className="h-5 w-5" />
+            <motion.div animate={{ rotate: collapsed ? 180 : 0 }} transition={{ type: 'spring', stiffness: 300, damping: 25 }}>
+              {collapsed ? <Menu className="h-5 w-5" /> : <ChevronLeft className="h-5 w-5" />}
+            </motion.div>
           </button>
-          <div>
-            <p className="font-mono text-[10px] uppercase tracking-widest text-officer-muted/70">Officer Portal</p>
-            <h1 className="text-lg font-semibold">{labels[segment] || 'Dashboard'}</h1>
-          </div>
-          <div className="ml-auto flex items-center gap-3">
-            <div className="hidden items-center gap-2 rounded-xl border border-officer-border px-3 py-1.5 font-mono text-xs text-officer-mint sm:flex">
-              <span className="h-2 w-2 rounded-full bg-officer-mint animate-pulse" />
-              {camerasLive} LIVE
+        </div>
+
+        {/* Nav links */}
+        <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5">
+          {NAV_ITEMS.map((item) => (
+            <NavLink
+              key={item.path}
+              to={item.path}
+              className={({ isActive }) => cn(
+                'group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors relative',
+                isActive
+                  ? 'bg-amethyst/10 text-amethyst-light'
+                  : 'text-text-muted hover:text-text-primary hover:bg-white/[0.03]',
+              )}
+            >
+              {({ isActive }) => (
+                <>
+                  {isActive && (
+                    <motion.div
+                      layoutId="nav-indicator"
+                      className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-6 rounded-full bg-amethyst glow-amethyst"
+                      transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                    />
+                  )}
+                  <item.icon className="h-5 w-5 shrink-0" />
+                  {!collapsed && (
+                    <span className="truncate">{item.label}</span>
+                  )}
+                  {!collapsed && item.badge === 'review' && reviewCount > 0 && (
+                    <Badge variant="warning" dot className="ml-auto">{reviewCount}</Badge>
+                  )}
+                  {!collapsed && item.badge === 'emergency' && (
+                    <span className="ml-auto h-2 w-2 rounded-full bg-crimson animate-dot-pulse" />
+                  )}
+                </>
+              )}
+            </NavLink>
+          ))}
+        </nav>
+
+        {/* Officer profile */}
+        {officer && !collapsed && (
+          <div className="p-4 border-t border-border-glass">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="h-9 w-9 rounded-full bg-amethyst/20 flex items-center justify-center text-amethyst font-display font-bold text-sm">
+                {officer.name.charAt(0)}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium text-text-primary truncate">{officer.name}</p>
+                <p className="text-xs text-text-muted truncate">{officer.badge}</p>
+              </div>
             </div>
-            <div className="relative" ref={notifRef}>
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-2 px-3 py-2 w-full rounded-lg text-xs text-text-muted hover:text-crimson hover:bg-crimson/5"
+            >
+              <LogOut className="h-4 w-4" /> Sign Out
+            </button>
+          </div>
+        )}
+      </motion.aside>
+
+      {/* ── Main content ── */}
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Header bar */}
+        <header className="flex items-center justify-between h-16 px-6 border-b border-border-glass bg-void/50 backdrop-blur-xl z-10 shrink-0">
+          <div>
+            <h1 className="text-h3 text-text-primary">
+              {NAV_ITEMS.find((n) => location.pathname.startsWith(n.path))?.label || 'Dashboard'}
+            </h1>
+          </div>
+
+          <div className="flex items-center gap-3">
+            {/* Notification bell */}
+            <div className="relative">
               <button
-                type="button"
-                onClick={openNotifs}
-                className="relative rounded-xl border border-officer-border p-2.5 text-officer-muted hover:text-white"
+                onClick={() => { setShowNotifs(!showNotifs); if (!showNotifs) markRead() }}
+                className="relative p-2 rounded-xl hover:bg-white/[0.04] text-text-muted hover:text-text-primary"
               >
                 <Bell className="h-5 w-5" />
                 {unread > 0 && (
-                  <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-officer-primary px-1 font-mono text-[9px] font-bold text-black">
-                    {unread}
-                  </span>
+                  <motion.span
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    className="absolute -top-0.5 -right-0.5 h-5 w-5 rounded-full bg-crimson text-white text-[10px] font-bold flex items-center justify-center"
+                  >
+                    {unread > 9 ? '9+' : unread}
+                  </motion.span>
                 )}
               </button>
+
               <AnimatePresence>
-                {notifOpen && (
+                {showNotifs && (
                   <motion.div
-                    initial={{ opacity: 0, y: -8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -8 }}
-                    className="absolute right-0 top-12 z-50 w-80 overflow-hidden rounded-2xl border border-officer-border bg-officer-surface shadow-2xl"
+                    initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                    transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+                    className="absolute right-0 top-full mt-2 w-80 max-h-96 overflow-y-auto glass-strong rounded-xl z-50"
                   >
-                    <div className="flex items-center justify-between border-b border-officer-border px-4 py-3">
-                      <p className="text-sm font-semibold">Notifications</p>
-                      <span className="font-mono text-[10px] text-officer-muted">{notifs.length} recent</span>
+                    <div className="p-3 border-b border-border-glass">
+                      <span className="text-label text-text-muted">Notifications</span>
                     </div>
-                    <div className="max-h-96 overflow-y-auto">
-                      {notifs.length === 0 ? (
-                        <p className="px-4 py-8 text-center text-sm text-officer-muted">No notifications</p>
-                      ) : notifs.map((n) => (
+                    {notifications.length === 0 ? (
+                      <div className="p-6 text-center text-text-muted text-sm">No notifications</div>
+                    ) : (
+                      notifications.slice(0, 10).map((n) => (
                         <button
                           key={n.id}
-                          onClick={() => { setNotifOpen(false); if (n.link) navigate(n.link) }}
-                          className="flex w-full items-start gap-3 border-b border-officer-border/50 px-4 py-3 text-left hover:bg-white/5"
+                          onClick={() => { if (n.link) navigate(n.link); setShowNotifs(false) }}
+                          className="w-full text-left px-4 py-3 hover:bg-white/[0.03] border-b border-border-glass last:border-0"
                         >
-                          <span className="text-base">{kindIcon[n.kind] || '🔔'}</span>
-                          <div className="min-w-0 flex-1">
-                            <p className="truncate text-sm font-medium text-white">{n.title}</p>
-                            <p className="truncate text-xs text-officer-muted">{n.body}</p>
-                            <p className="mt-0.5 font-mono text-[10px] text-officer-faint">{timeAgo(n.created_at)}</p>
-                          </div>
-                          {!n.read && <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-officer-primary" />}
+                          <p className="text-sm text-text-primary font-medium">{n.title}</p>
+                          <p className="text-xs text-text-muted mt-0.5 line-clamp-2">{n.body}</p>
                         </button>
-                      ))}
-                    </div>
+                      ))
+                    )}
                   </motion.div>
                 )}
               </AnimatePresence>
             </div>
-            <Link
-              to="/"
-              className="flex h-10 items-center gap-2 rounded-xl border border-rose-500/30 bg-rose-500/5 px-4 text-sm font-medium text-rose-400 transition-colors hover:bg-rose-500/20 hover:text-rose-300"
-              aria-label="Exit officer portal"
-            >
-              <LogOut className="h-[18px] w-[18px]" />
-              <span className="hidden sm:inline">Exit</span>
-            </Link>
           </div>
         </header>
-        <main className="flex-1 p-[clamp(1rem,3vw,2.5rem)]">
+
+        {/* Page content */}
+        <main className="flex-1 overflow-y-auto p-6">
           <Outlet />
         </main>
       </div>

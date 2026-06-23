@@ -1,82 +1,73 @@
-import { useEffect } from 'react'
-import { CircleMarker, MapContainer, Popup, TileLayer, Tooltip, useMap } from 'react-leaflet'
-import L from 'leaflet'
+import { MapContainer, TileLayer, CircleMarker, Popup, LayerGroup } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
+import { cn } from '@/lib/utils'
 
-/** Fixes the classic Leaflet "renders before container is sized" bug and
- *  auto-fits the view to all markers so none are off-screen. */
-function MapReady({ markers }: { markers: MapMarker[] }) {
-  const map = useMap()
-  useEffect(() => {
-    const t = setTimeout(() => {
-      map.invalidateSize()
-      if (markers.length > 1) {
-        const b = L.latLngBounds(markers.map((m) => [m.lat, m.lng] as [number, number]))
-        map.fitBounds(b, { padding: [40, 40], maxZoom: 14 })
-      }
-    }, 200)
-    return () => clearTimeout(t)
-  }, [map, markers])
-  return null
-}
-
-export interface MapMarker {
+interface MapMarker {
   lat: number
   lng: number
   label: string
-  sub?: string
   color?: string
   radius?: number
+  popup?: string
 }
 
-interface Props {
-  markers: MapMarker[]
+interface DrishtiMapProps {
+  markers?: MapMarker[]
   center?: [number, number]
   zoom?: number
-  height?: number | string
-  dark?: boolean
   className?: string
+  height?: string
+  citizen?: boolean
 }
 
-const BENGALURU: [number, number] = [12.9716, 77.5946]
+const DARK_TILES = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+const LIGHT_TILES = 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png'
 
-/** Reusable OpenStreetMap (Leaflet) map — no API key, deploy-safe. */
-export function DrishtiMap({ markers, center, zoom = 12, height = 480, dark = true, className }: Props) {
-  const c = center || (markers[0] ? [markers[0].lat, markers[0].lng] as [number, number] : BENGALURU)
-  const tiles = dark
-    ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
-    : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png'
-
+export function DrishtiMap({
+  markers = [],
+  center = [12.9716, 77.5946],
+  zoom = 12,
+  className,
+  height = '400px',
+  citizen = false,
+}: DrishtiMapProps) {
   return (
-    <div className={className} style={{ height, width: '100%', borderRadius: 16, overflow: 'hidden' }}>
-      <MapContainer center={c} zoom={zoom} style={{ height: '100%', width: '100%' }} scrollWheelZoom>
-        <MapReady markers={markers} />
-        <TileLayer
-          url={tiles}
-          attribution='&copy; OpenStreetMap &copy; CARTO'
-        />
-        {markers.map((m, i) => (
-          <CircleMarker
-            key={i}
-            center={[m.lat, m.lng]}
-            radius={m.radius ?? 9}
-            pathOptions={{
-              color: m.color || '#ffa733',
-              fillColor: m.color || '#ffa733',
-              fillOpacity: 0.55,
-              weight: 2,
-            }}
-          >
-            <Tooltip direction="top" offset={[0, -6]}>{m.label}</Tooltip>
-            {m.sub && (
+    <div className={cn('rounded-xl overflow-hidden', className)} style={{ height }}>
+      <MapContainer
+        center={center}
+        zoom={zoom}
+        className="h-full w-full"
+        zoomControl={false}
+        attributionControl={false}
+      >
+        <TileLayer url={citizen ? LIGHT_TILES : DARK_TILES} />
+        {/* Wrap markers in a LayerGroup keyed by the marker set's signature.
+            react-leaflet does not reliably remove individual CircleMarkers when
+            the array shrinks (toggling a layer off left stale markers behind);
+            remounting the whole group on any change tears down every old leaflet
+            layer and rebuilds cleanly. */}
+        <LayerGroup key={markers.map((m) => `${m.label}@${m.lat},${m.lng}`).join('|')}>
+          {markers.map((m, i) => (
+            <CircleMarker
+              // index suffix keeps the key unique when two markers share a spot
+              // (e.g. two ambulances dispatched to the same junction).
+              key={`${m.label}|${m.lat}|${m.lng}|${m.color ?? ''}|${m.radius ?? ''}|${i}`}
+              center={[m.lat, m.lng]}
+              radius={m.radius || 8}
+              pathOptions={{
+                color: m.color || (citizen ? '#0D9488' : '#14B8A6'),
+                fillColor: m.color || (citizen ? '#0D9488' : '#14B8A6'),
+                fillOpacity: 0.5,
+                weight: 2,
+              }}
+            >
               <Popup>
-                <b>{m.label}</b>
-                <br />
-                {m.sub}
+                <div className="font-display text-sm font-semibold">{m.label}</div>
+                {m.popup && <div className="text-xs mt-1 opacity-70">{m.popup}</div>}
               </Popup>
-            )}
-          </CircleMarker>
-        ))}
+            </CircleMarker>
+          ))}
+        </LayerGroup>
       </MapContainer>
     </div>
   )

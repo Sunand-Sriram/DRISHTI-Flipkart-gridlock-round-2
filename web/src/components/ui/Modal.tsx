@@ -1,3 +1,4 @@
+import { type ReactNode, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -5,55 +6,81 @@ import { cn } from '@/lib/utils'
 interface ModalProps {
   open: boolean
   onClose: () => void
+  children: ReactNode
   title?: string
-  children: React.ReactNode
-  citizen?: boolean
   wide?: boolean
+  citizen?: boolean
 }
 
-export function Modal({ open, onClose, title, children, citizen, wide }: ModalProps) {
+export function Modal({ open, onClose, children, title, wide, citizen }: ModalProps) {
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    if (open) window.addEventListener('keydown', handleEsc)
+    return () => window.removeEventListener('keydown', handleEsc)
+  }, [open, onClose])
+
+  useEffect(() => {
+    if (open) document.body.style.overflow = 'hidden'
+    else document.body.style.overflow = ''
+    return () => { document.body.style.overflow = '' }
+  }, [open])
+
   return (
     <AnimatePresence>
       {open && (
-        <>
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+          {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm"
+            transition={{ duration: 0.2 }}
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
             onClick={onClose}
           />
+
+          {/* Content */}
           <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            transition={{ type: 'spring', stiffness: 350, damping: 28 }}
+            initial={{ scale: 0.95, opacity: 0, y: 10 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            exit={{ scale: 0.95, opacity: 0, y: 10 }}
+            transition={{ type: 'spring', stiffness: 300, damping: 30 }}
             className={cn(
-              'fixed left-1/2 top-1/2 z-50 max-h-[90vh] -translate-x-1/2 -translate-y-1/2 overflow-auto rounded-2xl border p-6 shadow-2xl',
-              wide ? 'w-[min(92vw,900px)]' : 'w-[min(92vw,520px)]',
-              citizen ? 'border-slate-100 bg-white' : 'border-officer-border bg-officer-surface'
+              'relative z-10 w-full rounded-2xl overflow-hidden',
+              wide ? 'max-w-3xl' : 'max-w-lg',
+              citizen
+                ? 'bg-white border border-citizen-border shadow-2xl'
+                : 'glass-strong',
             )}
           >
-            <div className="mb-4 flex items-center justify-between">
-              {title && (
-                <h2 className={cn('text-lg font-semibold', citizen ? 'text-citizen-primary' : 'text-white')}>
-                  {title}
-                </h2>
-              )}
-              <button
-                type="button"
-                onClick={onClose}
-                className={cn(
-                  'ml-auto rounded-lg p-2 transition-colors',
-                  citizen ? 'hover:bg-slate-100 text-slate-500' : 'hover:bg-white/10 text-officer-muted'
-                )}
-              >
-                <X className="h-5 w-5" />
-              </button>
+            {/* Header */}
+            {title && (
+              <div className={cn(
+                'flex items-center justify-between px-6 py-4 border-b',
+                citizen ? 'border-citizen-border' : 'border-border-glass',
+              )}>
+                <h2 className={cn(
+                  'text-h3',
+                  citizen ? 'text-citizen-text' : 'text-text-primary',
+                )}>{title}</h2>
+                <button
+                  onClick={onClose}
+                  className={cn(
+                    'p-1.5 rounded-lg transition-colors',
+                    citizen ? 'hover:bg-gray-100 text-citizen-muted' : 'hover:bg-white/[0.06] text-text-muted',
+                  )}
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+            )}
+
+            {/* Body */}
+            <div className="px-6 py-5 max-h-[70vh] overflow-y-auto">
+              {children}
             </div>
-            {children}
           </motion.div>
-        </>
+        </div>
       )}
     </AnimatePresence>
   )

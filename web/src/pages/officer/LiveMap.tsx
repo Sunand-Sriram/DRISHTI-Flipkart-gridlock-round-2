@@ -1,121 +1,102 @@
 import { useState } from 'react'
-import { motion } from 'framer-motion'
+import { Clock } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
 import { Switch } from '@/components/ui/Switch'
-import { DrishtiMap, type MapMarker } from '@/components/ui/DrishtiMap'
-import { useCameras, useCheckposts, useHotspots, useEmergencies } from '@/lib/hooks'
+import { DrishtiMap } from '@/components/ui/DrishtiMap'
+import { useCameras, useCheckposts, useEmergencies, useHotspots } from '@/lib/hooks'
 
 export default function LiveMap() {
-  const [offset, setOffset] = useState(120)
-  const [layers, setLayers] = useState({ cameras: true, hotspots: true, checkposts: true, emergencies: true })
+  const [showCams, setShowCams] = useState(true)
+  const [showCheckposts, setShowCheckposts] = useState(true)
+  const [showHotspots, setShowHotspots] = useState(true)
+  const [showEmergencies, setShowEmergencies] = useState(true)
+  const [timeOffset, setTimeOffset] = useState(0)
 
-  const { data: cameras } = useCameras()
-  const { data: checkposts } = useCheckposts()
+  const { data: cams } = useCameras()
+  const { data: cps } = useCheckposts()
   const { data: emergencies } = useEmergencies('active')
-  // snap to 30-min buckets so dragging the slider doesn't spam the backend
-  const { data: hotspotData } = useHotspots(Math.round(offset / 30) * 30)
-  const mockCameras = cameras ?? []
-  const hotspots = (hotspotData?.hotspots ?? []).slice(0, 6)
+  const { data: hotspotData } = useHotspots(timeOffset)
 
-  const futureTime = new Date(Date.now() + offset * 60000)
-
-  // build map markers from the toggled layers. Cameras, checkposts and emergencies
-  // often share the exact junction coords, so we nudge each layer a few metres
-  // apart (≈0.0009° ≈ 100 m) so they don't stack and hide one another.
-  const markers: MapMarker[] = []
-  if (layers.cameras)
-    mockCameras.forEach((c) => markers.push({
-      lat: c.lat, lng: c.lng, label: `${c.name} (${c.status})`, sub: c.location,
-      color: c.status === 'live' ? '#34d399' : '#5b6473', radius: 8,
-    }))
-  if (layers.checkposts)
-    (checkposts ?? []).forEach((c) => markers.push({
-      lat: c.lat + 0.0009, lng: c.lng - 0.0009, label: `🚔 ${c.name}`, sub: `Officer: ${c.officer}`,
-      color: '#2d5bff', radius: 8,
-    }))
-  if (layers.hotspots)
-    hotspots.forEach((h) => markers.push({
-      lat: h.lat, lng: h.lng, label: `${h.label} · risk ${h.risk}/10`,
-      sub: `Predicted ${h.expected ?? ''} violations`, color: '#ff5d5d', radius: 6 + (h.risk || 1),
-    }))
-  if (layers.emergencies)
-    (emergencies ?? []).forEach((e) => markers.push({
-      lat: e.lat - 0.0009, lng: e.lng + 0.0009, label: `🚨 ${e.vehicle}`, sub: `${e.location} → ${e.checkpost}`,
-      color: '#fbbf24', radius: 11,
-    }))
+  const markers = [
+    ...(showCams ? (cams || []).map((c) => ({
+      lat: c.lat, lng: c.lng,
+      label: `📹 ${c.name} (${c.id})`,
+      color: c.status === 'live' ? '#10B981' : '#6B7280',
+      radius: 7,
+      popup: `Camera · ${c.count} violations · ${c.status}`,
+    })) : []),
+    ...(showCheckposts ? (cps || []).map((c) => ({
+      lat: c.lat, lng: c.lng,
+      label: `🛡️ ${c.name}`,
+      color: '#3B82F6',
+      radius: 10,
+      popup: `Checkpost · Officer: ${c.officer}`,
+    })) : []),
+    ...(showEmergencies ? (emergencies || []).map((e) => {
+      const v = (e.vehicle || '').toLowerCase()
+      const icon = v.includes('ambulance') ? '🚑' : v.includes('fire') ? '🚒' : '🚔'
+      const color = v.includes('ambulance') ? '#EF4444' : v.includes('fire') ? '#F97316' : '#8B5CF6'
+      return {
+        lat: e.lat, lng: e.lng,
+        label: `${icon} ${e.vehicle.replace(/_/g, ' ').toUpperCase()}`,
+        color,
+        radius: 14,
+        popup: `Emergency · ${e.location} · ${e.camera}`,
+      }
+    }) : []),
+    ...(showHotspots ? (hotspotData?.hotspots || []).map((h) => ({
+      lat: h.lat, lng: h.lng,
+      label: `🔥 ${h.label}`,
+      color: h.risk > 0.7 ? '#EF4444' : h.risk > 0.4 ? '#F59E0B' : '#10B981',
+      radius: 6 + Math.round(h.risk * 8),
+      popup: `Hotspot · Risk: ${(h.risk * 100).toFixed(0)}% · ${h.top_violation}`,
+    })) : []),
+  ]
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[1fr_340px]">
-      <Card padding={false} className="relative min-h-[520px] overflow-hidden">
-        <DrishtiMap markers={markers} height={560} />
-        <div className="pointer-events-none absolute bottom-4 left-4 z-[1000] rounded-xl border border-officer-border bg-officer-surface/90 p-4 text-xs space-y-1">
-          <p className="font-semibold mb-1">Legend</p>
-          <p><span className="text-officer-mint">●</span> Live camera · <span className="text-officer-faint">●</span> Offline</p>
-          <p><span className="text-officer-blue">●</span> Checkpost · <span className="text-red-400">●</span> Predicted hotspot</p>
-          <p><span className="text-amber-400">●</span> Active emergency</p>
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-h2 text-text-primary">Live Map</h2>
+        <div className="flex items-center gap-4">
+          <Switch checked={showCams} onChange={setShowCams} label="Cameras" />
+          <Switch checked={showCheckposts} onChange={setShowCheckposts} label="Checkposts" />
+          <Switch checked={showHotspots} onChange={setShowHotspots} label="Hotspots" />
+          <Switch checked={showEmergencies} onChange={setShowEmergencies} label="Emergencies" />
         </div>
-      </Card>
+      </div>
 
-      <div className="space-y-5">
+      <DrishtiMap markers={markers} height="calc(100vh - 280px)" />
+
+      {/* Hotspot time slider */}
+      {showHotspots && (
         <Card>
-          <h3 className="font-semibold mb-4">Layer Toggles</h3>
-          <div className="space-y-3">
-            {(Object.keys(layers) as (keyof typeof layers)[]).map((k) => (
-              <Switch
-                key={k}
-                checked={layers[k]}
-                onChange={(v) => setLayers((l) => ({ ...l, [k]: v }))}
-                label={k.charAt(0).toUpperCase() + k.slice(1)}
-              />
-            ))}
+          <div className="flex items-center gap-4">
+            <Clock className="h-5 w-5 text-text-muted" />
+            <span className="text-sm text-text-muted">Predict:</span>
+            <input
+              type="range" min={0} max={360} step={30} value={timeOffset}
+              onChange={(e) => setTimeOffset(+e.target.value)}
+              className="flex-1 accent-amethyst"
+            />
+            <span className="text-sm font-mono text-text-secondary w-20">+{(timeOffset / 60).toFixed(1)}h</span>
           </div>
+          {hotspotData && (
+            <p className="text-xs text-text-faint mt-2">
+              Based on {hotspotData.based_on} events over {hotspotData.weeks} weeks
+            </p>
+          )}
         </Card>
+      )}
 
-        <Card>
-          <h3 className="font-semibold mb-2">Predicted Hotspots</h3>
-          <p className="text-xs text-officer-muted mb-4">Time slider — next 6 hours</p>
-          <input
-            type="range"
-            min={0}
-            max={360}
-            value={offset}
-            onChange={(e) => setOffset(Number(e.target.value))}
-            className="w-full accent-amber-500"
-          />
-          <div className="mt-2 flex justify-between font-mono text-[10px] text-officer-muted">
-            <span>Now</span>
-            <span>{futureTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-            <span>+6h</span>
-          </div>
-          <div className="mt-5 space-y-3">
-            {hotspots.map((h) => (
-              <div key={h.label}>
-                <div className="flex justify-between text-sm mb-1">
-                  <span>{h.label}</span>
-                  <span className="font-mono text-amber-300">{h.risk}/10</span>
-                </div>
-                <div className="h-1.5 rounded-full bg-officer-border overflow-hidden">
-                  <motion.div
-                    className="h-full bg-gradient-to-r from-amber-500 to-red-400"
-                    animate={{ width: `${h.risk * 10}%` }}
-                    transition={{ type: 'spring', stiffness: 200, damping: 25 }}
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-        </Card>
-
-        <Card className="max-h-48 overflow-y-auto">
-          <h3 className="font-semibold mb-3 text-sm">Cameras</h3>
-          {mockCameras.map((cam) => (
-            <div key={cam.id} className="flex items-center gap-2 py-2 border-b border-officer-border/50 text-sm">
-              <span className={`h-2 w-2 rounded-full ${cam.status === 'live' ? 'bg-emerald-400' : 'bg-slate-500'}`} />
-              <span className="font-mono">{cam.name}</span>
-              <span className="ml-auto font-mono text-officer-muted">{cam.count}</span>
-            </div>
-          ))}
-        </Card>
+      {/* Legend */}
+      <div className="flex flex-wrap items-center gap-4 text-xs text-text-muted">
+        <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-emerald-500" /> Camera (Live)</span>
+        <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-gray-500" /> Camera (Offline)</span>
+        <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-blue-500" /> Checkpost</span>
+        <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-red-500" /> 🚑 Ambulance</span>
+        <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-orange-500" /> 🚒 Fire Engine</span>
+        <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-violet-500" /> 🚔 Police</span>
+        <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-amber-400" /> 🔥 Hotspot</span>
       </div>
     </div>
   )

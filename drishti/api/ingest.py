@@ -112,6 +112,9 @@ async def run_inference_task(task_id: str, ws):
     fno = 0
     is_live = bool(task.get("live"))
     fails = 0
+    # ── dedup: skip same plate+violation within a cooldown window ──
+    _recent: dict[str, float] = {}  # "PLATE:violation" -> last challan timestamp
+    DEDUP_COOLDOWN = 60  # seconds
     while True:
         if task.get("stop"):
             break
@@ -161,6 +164,15 @@ async def run_inference_task(task_id: str, ws):
                     if crop.size:
                         plate_txt, _ = await asyncio.to_thread(read_plate, crop)
                 others = [b for b in _plate_boxes(dets) if b != plate_box]
+                # ── dedup: skip if same plate+violation was recently challan'd ──
+                dedup_key = f"{(plate_txt or '').upper()}:{e['type']}"
+                now = time.time()
+                if plate_txt and dedup_key in _recent and (now - _recent[dedup_key]) < DEDUP_COOLDOWN:
+                    continue  # skip duplicate
+                _recent[dedup_key] = now
+                # If plate is unreadable, add a random suffix to distinguish challans
+                if not plate_txt:
+                    plate_txt = f"UNKNOWN-{uuid.uuid4().hex[:6].upper()}"
                 meta = {"camera": cam["id"], "plate": plate_txt or None}
                 img = build_evidence(frame, e["box"], e["type"], e["conf"], others, meta)
                 ev_count += 1

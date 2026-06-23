@@ -1,35 +1,50 @@
+import { forwardRef, type SelectHTMLAttributes } from 'react'
+import { ChevronDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
+interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
   label?: string
-  citizen?: boolean
   options: { value: string; label: string }[]
+  citizen?: boolean
 }
 
-export function Select({ label, citizen, options, className, ...props }: SelectProps) {
-  return (
-    <div className="flex flex-col gap-2">
-      {label && (
-        <label className={cn('text-sm font-medium', citizen ? 'text-citizen-primary/80' : 'text-officer-muted')}>
-          {label}
-        </label>
-      )}
-      <select
-        className={cn(
-          'h-11 rounded-xl border px-3 text-sm outline-none transition-all focus:ring-2',
-          citizen
-            ? 'border-slate-200 bg-white text-slate-800 focus:border-citizen-primary focus:ring-citizen-primary/20'
-            : 'border-officer-border bg-officer-surface text-white focus:border-officer-primary focus:ring-officer-primary/25',
-          className
+export const Select = forwardRef<HTMLSelectElement, SelectProps>(
+  ({ label, options, citizen, className, ...props }, ref) => {
+    return (
+      <div className="flex flex-col gap-1.5">
+        {label && (
+          <label className={cn(
+            'text-label',
+            citizen ? 'text-citizen-muted' : 'text-text-muted',
+          )}>
+            {label}
+          </label>
         )}
-        {...props}
-      >
-        {options.map((o) => (
-          <option key={o.value} value={o.value}>
-            {o.label}
-          </option>
-        ))}
-      </select>
-    </div>
-  )
-}
+        <div className="relative">
+          <select
+            ref={ref}
+            className={cn(
+              'h-11 w-full rounded-xl px-4 pr-10 text-sm outline-none appearance-none cursor-pointer transition-shadow duration-200',
+              citizen
+                ? 'bg-white border border-citizen-border text-citizen-text focus:ring-2 focus:ring-citizen-primary/30'
+                : 'bg-white/[0.03] border border-border-glass text-text-primary focus:ring-2 focus:ring-amethyst/30',
+              className,
+            )}
+            {...props}
+          >
+            {options.map((opt) => (
+              <option key={opt.value} value={opt.value} className="bg-void text-text-primary">
+                {opt.label}
+              </option>
+            ))}
+          </select>
+          <ChevronDown className={cn(
+            'absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 pointer-events-none',
+            citizen ? 'text-citizen-muted' : 'text-text-muted',
+          )} />
+        </div>
+      </div>
+    )
+  }
+)
+Select.displayName = 'Select'

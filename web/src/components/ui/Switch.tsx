@@ -3,42 +3,40 @@ import { cn } from '@/lib/utils'
 
 interface SwitchProps {
   checked: boolean
-  onChange: (v: boolean) => void
+  onChange: (checked: boolean) => void
   label?: string
-  citizen?: boolean
+  disabled?: boolean
 }
 
-export function Switch({ checked, onChange, label, citizen }: SwitchProps) {
+export function Switch({ checked, onChange, label, disabled }: SwitchProps) {
   return (
-    <label className="flex cursor-pointer items-center gap-3">
-      {label && (
-        <span className={cn('text-sm', citizen ? 'text-slate-600' : 'text-officer-muted')}>{label}</span>
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      disabled={disabled}
+      onClick={() => onChange(!checked)}
+      className={cn(
+        'group inline-flex items-center gap-3',
+        disabled && 'opacity-50 pointer-events-none',
       )}
-      <button
-        type="button"
-        role="switch"
-        aria-checked={checked}
-        onClick={() => onChange(!checked)}
-        className={cn(
-          'relative h-7 w-12 rounded-full transition-colors',
-          checked
-            ? citizen
-              ? 'bg-citizen-primary'
-              : 'bg-officer-primary'
-            : citizen
-              ? 'bg-slate-200'
-              : 'bg-officer-border'
-        )}
-      >
-        <motion.span
+    >
+      <div className={cn(
+        'relative h-6 w-11 rounded-full p-0.5 transition-colors duration-200',
+        checked ? 'bg-amethyst shadow-md shadow-amethyst/30' : 'bg-white/10 border border-border-glass',
+      )}>
+        <motion.div
           layout
           transition={{ type: 'spring', stiffness: 500, damping: 30 }}
           className={cn(
-            'absolute top-1 h-5 w-5 rounded-full bg-white shadow-md',
-            checked ? 'left-6' : 'left-1'
+            'h-5 w-5 rounded-full bg-white shadow-sm',
+            checked ? 'ml-auto' : 'ml-0',
           )}
         />
-      </button>
-    </label>
+      </div>
+      {label && (
+        <span className="text-sm text-text-secondary">{label}</span>
+      )}
+    </button>
   )
 }

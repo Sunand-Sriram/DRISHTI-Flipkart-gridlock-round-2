@@ -1,155 +1,124 @@
-import { useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, Download, Mail } from 'lucide-react'
-import { AccordionItem } from '@/components/ui/Accordion'
-import { Button } from '@/components/ui/Button'
-import { Card, CardTitle } from '@/components/ui/Card'
-import { StatusBadge } from '@/components/ui/ViolationBadge'
-import { ViolationBadge } from '@/components/ui/ViolationBadge'
+import { useParams, useNavigate } from 'react-router-dom'
+import { ArrowLeft, Download, Mail, AlertCircle } from 'lucide-react'
+import { Card } from '@/components/ui/Card'
+import { Badge } from '@/components/ui/Badge'
+import { MagneticButton } from '@/components/motion/MagneticButton'
+import { Accordion } from '@/components/ui/Accordion'
+import { ViolationBadge, StatusBadge } from '@/components/ui/ViolationBadge'
 import { useChallan } from '@/lib/hooks'
 import { api, evidenceUrl } from '@/lib/api'
-import { formatPlate, inr } from '@/lib/utils'
+import { inr, formatPlate } from '@/lib/utils'
+import { useToast } from '@/components/ui/Toast'
 
 export default function ChallanDetail() {
-  const { id } = useParams()
+  const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { data: challan, loading } = useChallan(id)
-  const [emailMsg, setEmailMsg] = useState('')
-  const [emailing, setEmailing] = useState(false)
+  const { data: c, loading } = useChallan(id)
+  const toast = useToast()
 
-  async function emailChallan() {
-    if (!challan) return
-    setEmailing(true)
-    setEmailMsg('')
-    try {
-      const r = await api.sendChallanEmail(challan.challan_id)
-      if (r.sent && r.mode === 'smtp') setEmailMsg(`✓ Emailed to ${r.to}`)
-      else if (r.sent && r.mode === 'outbox') setEmailMsg(`✓ Rendered for ${r.to} (outbox preview — set SMTP env to send live)`)
-      else setEmailMsg(`⚠️ ${r.error || 'Could not send'}`)
-    } catch {
-      setEmailMsg('⚠️ Email service unavailable')
-    }
-    setEmailing(false)
-  }
+  if (loading) return <div className="text-center py-20 text-text-muted">Loading...</div>
+  if (!c) return <div className="text-center py-20 text-text-muted">Challan not found</div>
 
-  if (loading) {
-    return <Card className="py-12 text-center"><p className="text-officer-muted">Loading…</p></Card>
-  }
-  if (!challan) {
-    return (
-      <Card className="py-12 text-center">
-        <p className="text-officer-muted">Challan not found</p>
-        <Button className="mt-4" onClick={() => navigate('/officer/challans')}>Back to list</Button>
-      </Card>
-    )
+  const sendEmail = async () => {
+    const res = await api.sendChallanEmail(c.challan_id)
+    if (res.sent || res.mode === 'outbox') toast.success(`Email ${res.mode === 'smtp' ? 'sent' : 'queued'} to ${res.to}`)
+    else toast.error('Failed to send email')
   }
 
   return (
-    <div className="space-y-6 pb-12">
-      <button
-        type="button"
-        onClick={() => navigate('/officer/challans')}
-        className="flex items-center gap-2 text-sm text-officer-muted hover:text-white"
-      >
-        <ArrowLeft className="h-4 w-4" /> Back to Challans
+    <div className="space-y-6">
+      <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-sm text-text-muted hover:text-text-primary">
+        <ArrowLeft className="h-4 w-4" /> Back
       </button>
 
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card>
-          <p className="font-mono text-2xl text-amber-300">{challan.challan_id}</p>
-          <p className="mt-2 text-sm text-officer-muted">
-            Issued: {new Date(challan.created_at).toLocaleString()}
-          </p>
-          <p className="text-sm text-officer-muted">Camera: {challan.camera}</p>
-          <p className="text-sm text-officer-muted">Location: {challan.location}</p>
-        </Card>
-        <Card>
-          <StatusBadge status={challan.status} />
-          <p className="mt-3 text-sm">Officer: {challan.officer_name}</p>
-        </Card>
+      <div className="flex items-center justify-between flex-wrap gap-4">
+        <div>
+          <h2 className="text-h2 text-text-primary font-mono">{c.challan_id}</h2>
+          <div className="flex items-center gap-3 mt-2">
+            <ViolationBadge violation={c.violation} />
+            <StatusBadge status={c.status} />
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <MagneticButton variant="outline" size="sm" onClick={() => window.open(api.challanPdfUrl(c.challan_id))} icon={<Download className="h-4 w-4" />}>
+            PDF
+          </MagneticButton>
+          <MagneticButton size="sm" onClick={sendEmail} icon={<Mail className="h-4 w-4" />}>
+            Email Owner
+          </MagneticButton>
+        </div>
       </div>
 
-      <Card>
-        <CardTitle>Violation Details</CardTitle>
-        <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <div><p className="text-xs text-officer-muted">Type</p><ViolationBadge type={challan.violation} /></div>
-          <div><p className="text-xs text-officer-muted">Confidence</p><p className="font-mono">{challan.confidence?.toFixed(2)}</p></div>
-          <div><p className="text-xs text-officer-muted">Frame</p><p className="font-mono">{challan.frame}</p></div>
-          <div><p className="text-xs text-officer-muted">Speed</p><p className="font-mono">{challan.speed_kmh} km/h</p></div>
-        </div>
-        <div className="mt-6 aspect-video max-w-xl overflow-hidden rounded-xl border border-officer-border bg-gradient-to-br from-slate-800 to-slate-900 relative">
-          {challan.evidence_image ? (
-            <img src={evidenceUrl(challan.evidence_image)} alt="Violation evidence"
-                 className="h-full w-full object-cover" />
-          ) : (
-            <>
-              <div className="absolute left-1/3 top-1/3 h-24 w-32 border-2 border-red-500 rounded" />
-              <span className="absolute bottom-4 left-4 text-xs text-officer-muted">Evidence (synthetic record)</span>
-            </>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Evidence */}
+        <Card className="lg:col-span-2">
+          {c.evidence_image && (
+            <img src={evidenceUrl(c.evidence_image)} alt="Evidence" className="w-full rounded-xl mb-4 border border-border-glass" />
           )}
-        </div>
-        <div className="mt-4 flex gap-2">
-          {challan.evidence_image && (
-            <a href={evidenceUrl(challan.evidence_image)} target="_blank" rel="noreferrer">
-              <Button variant="outline" size="sm">View Full Image</Button>
-            </a>
-          )}
-        </div>
-      </Card>
-
-      <AccordionItem title="Vehicle & Owner Details (VAHAN Lookup)" badge={<span className={`text-xs ${challan.plate_valid ? 'text-officer-mint' : 'text-amber-400'}`}>{challan.plate_valid ? 'Valid HSRP ✓' : 'HSRP unverified'}</span>}>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div><p className="text-xs text-officer-muted">Plate</p><p className="font-mono text-lg">{formatPlate(challan.plate || '')}</p></div>
-          <div><p className="text-xs text-officer-muted">Make/Model</p><p>{challan.owner.make_model}</p></div>
-          <div><p className="text-xs text-officer-muted">Owner</p><p>{challan.owner.owner}</p></div>
-          <div><p className="text-xs text-officer-muted">Phone</p><p className="font-mono">{challan.owner.phone}</p></div>
-          <div className="sm:col-span-2"><p className="text-xs text-officer-muted">Registered Email (VAHAN)</p><p className="font-mono text-officer-primary-soft">{(challan.owner as { email?: string }).email || '—'}</p></div>
-          <div className="sm:col-span-2"><p className="text-xs text-officer-muted">Address</p><p>{challan.owner.address}</p></div>
-          <div><p className="text-xs text-officer-muted">PUC</p><p className={challan.owner.puc_valid !== false ? 'text-officer-mint' : 'text-red-400'}>{challan.owner.puc_valid !== false ? '✓ Valid' : '✗ Expired'} (Expires: {challan.owner.puc_expires})</p></div>
-          <div><p className="text-xs text-officer-muted">Insurance</p><p className={challan.owner.insurance_valid !== false ? 'text-officer-mint' : 'text-red-400'}>{challan.owner.insurance_valid !== false ? '✓ Valid' : '✗ Expired'} (Expires: {challan.owner.insurance_expires})</p></div>
-        </div>
-        {challan.repeat_offender && (
-          <div className="mt-4 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-amber-300 text-sm">
-            ⚠️ Fine Doubled Due to Repeat Offence ({challan.owner.prior_violations} prior)
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+            <div className="glass rounded-xl p-3">
+              <span className="text-text-muted text-xs block mb-1">Confidence</span>
+              <span className="text-data text-lg">{((c.confidence || 0) * 100).toFixed(1)}%</span>
+            </div>
+            <div className="glass rounded-xl p-3">
+              <span className="text-text-muted text-xs block mb-1">Fine</span>
+              <span className="text-data text-lg">{inr(c.fine_inr)}</span>
+            </div>
+            {c.speed_kmh && (
+              <div className="glass rounded-xl p-3">
+                <span className="text-text-muted text-xs block mb-1">Speed</span>
+                <span className="text-data text-lg">{c.speed_kmh} km/h</span>
+              </div>
+            )}
+            <div className="glass rounded-xl p-3">
+              <span className="text-text-muted text-xs block mb-1">Camera</span>
+              <span className="text-sm font-medium">{c.camera}</span>
+            </div>
           </div>
-        )}
-      </AccordionItem>
+        </Card>
 
-      <Card>
-        <CardTitle>Fine Details</CardTitle>
-        <div className="mt-4 space-y-2 text-sm">
-          <div className="flex justify-between"><span>Base Fine</span><span className="font-mono">{inr(challan.base_fine_inr || challan.fine_inr)}</span></div>
-          {challan.repeat_multiplier && (
-            <div className="flex justify-between"><span>Repeat Multiplier</span><span className="font-mono">×{challan.repeat_multiplier}</span></div>
-          )}
-          <div className="border-t border-officer-border pt-3 flex justify-between text-lg font-bold">
-            <span>Total Fine</span><span className="font-mono text-red-400">{inr(challan.fine_inr)}</span>
-          </div>
-          <p className="text-officer-muted">Payment Status: {challan.paid_at ? 'PAID' : 'UNPAID'}</p>
-          <p className="text-officer-muted">Deadline: {challan.payment_deadline}</p>
-        </div>
-      </Card>
+        {/* Details sidebar */}
+        <div className="space-y-4">
+          <Card>
+            <h4 className="text-label text-text-muted mb-3">Details</h4>
+            <dl className="space-y-2 text-sm">
+              <div className="flex justify-between"><dt className="text-text-muted">Plate</dt><dd className="font-mono">{c.plate ? formatPlate(c.plate) : '—'}</dd></div>
+              <div className="flex justify-between"><dt className="text-text-muted">Location</dt><dd>{c.location || '—'}</dd></div>
+              <div className="flex justify-between"><dt className="text-text-muted">Date</dt><dd>{new Date(c.created_at * 1000).toLocaleString()}</dd></div>
+              {c.officer_name && <div className="flex justify-between"><dt className="text-text-muted">Officer</dt><dd>{c.officer_name}</dd></div>}
+              {c.payment_deadline && <div className="flex justify-between"><dt className="text-text-muted">Due</dt><dd>{c.payment_deadline}</dd></div>}
+            </dl>
+          </Card>
 
-      <Card>
-        <CardTitle>Officer Actions</CardTitle>
-        <div className="mt-4 flex flex-wrap items-center gap-3">
-          <a href={api.challanPdfUrl(challan.challan_id)} target="_blank" rel="noreferrer">
-            <Button><Download className="h-4 w-4" /> Download PDF</Button>
-          </a>
-          <Button variant="outline" loading={emailing} onClick={emailChallan}>
-            <Mail className="h-4 w-4" /> Email Challan to Owner
-          </Button>
-          {challan.status === 'CONTESTED' && (
-            <Link to={`/officer/contested`}>
-              <Button variant="danger">View Contest</Button>
-            </Link>
+          {c.repeat_offender && (
+            <Card className="border border-amber/20">
+              <div className="flex items-center gap-2 text-amber mb-2">
+                <AlertCircle className="h-5 w-5" />
+                <span className="font-display font-semibold text-sm">Repeat Offender</span>
+              </div>
+              <p className="text-xs text-text-muted">Fine multiplied {c.repeat_multiplier || 2}× (base: {inr(c.base_fine_inr || 0)})</p>
+            </Card>
+          )}
+
+          {c.owner && (
+            <Accordion title="Vehicle / Owner (VAHAN)">
+              <dl className="space-y-2 text-sm">
+                <div className="flex justify-between"><dt className="text-text-muted">Owner</dt><dd>{c.owner.owner || '—'}</dd></div>
+                <div className="flex justify-between"><dt className="text-text-muted">Vehicle</dt><dd>{c.owner.make_model || '—'}</dd></div>
+                <div className="flex justify-between"><dt className="text-text-muted">PUC</dt><dd>{c.owner.puc_valid ? <Badge variant="success">Valid</Badge> : <Badge variant="danger">Expired</Badge>}</dd></div>
+                <div className="flex justify-between"><dt className="text-text-muted">Insurance</dt><dd>{c.owner.insurance_valid ? <Badge variant="success">Valid</Badge> : <Badge variant="danger">Expired</Badge>}</dd></div>
+              </dl>
+            </Accordion>
+          )}
+
+          {c.citizen_reason && (
+            <Accordion title="Contest Details">
+              <p className="text-sm text-text-secondary mb-2">{c.citizen_reason}</p>
+              {c.officer_decision && <p className="text-sm text-amethyst-light"><strong>Decision:</strong> {c.officer_decision}</p>}
+            </Accordion>
           )}
         </div>
-        {emailMsg && <p className="mt-3 text-sm text-officer-mint">{emailMsg}</p>}
-        <p className="mt-2 text-xs text-officer-muted">
-          The e-challan PDF + branded email are delivered to the owner’s registered email from the VAHAN record.
-        </p>
-      </Card>
+      </div>
     </div>
   )
 }

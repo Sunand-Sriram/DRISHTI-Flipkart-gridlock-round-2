@@ -1,36 +1,48 @@
 import { cn } from '@/lib/utils'
+import { Eye, Shield } from 'lucide-react'
 
-export function DrishtiLogo({ size = 'md', citizen }: { size?: 'sm' | 'md' | 'lg'; citizen?: boolean }) {
-  const sizes = { sm: 28, md: 36, lg: 52 }
-  const s = sizes[size]
+interface DrishtiLogoProps {
+  size?: 'sm' | 'md' | 'lg'
+  citizen?: boolean
+  animate?: boolean
+  showText?: boolean
+}
+
+export function DrishtiLogo({ size = 'md', citizen, animate, showText = true }: DrishtiLogoProps) {
+  const px = { sm: 24, md: 32, lg: 48 }[size]
+  const textSize = { sm: 'text-sm', md: 'text-lg', lg: 'text-2xl' }[size]
+
   return (
-    <div className="flex items-center gap-3">
-      <div
-        className={cn(
-          'grid place-items-center flex-none border rotate-45 rounded-xl',
-          citizen ? 'border-citizen-primary/40' : 'border-officer-primary/50 shadow-lg shadow-amber-500/20'
-        )}
-        style={{ width: s, height: s }}
-      >
-        <span
+    <div className="flex items-center gap-2.5">
+      <div className={cn(
+        'relative flex items-center justify-center',
+        animate && 'animate-glow-pulse',
+      )}>
+        <Shield
+          size={px}
           className={cn(
-            'block rounded-full rotate-[-45deg]',
-            citizen ? 'bg-citizen-primary' : 'bg-officer-primary shadow-[0_0_12px_rgba(139,92,246,0.8)]'
+            citizen ? 'text-citizen-primary' : 'text-amethyst',
           )}
-          style={{ width: s * 0.25, height: s * 0.25 }}
+          strokeWidth={1.5}
+        />
+        <Eye
+          size={px * 0.4}
+          className={cn(
+            'absolute',
+            citizen ? 'text-citizen-primary' : 'text-amethyst-light',
+          )}
+          strokeWidth={2}
         />
       </div>
-      <span
-        className={cn(
-          'font-bold tracking-[0.15em]',
-          size === 'lg' && 'text-4xl',
-          size === 'md' && 'text-xl',
-          size === 'sm' && 'text-base',
-          citizen ? 'text-citizen-primary' : 'text-white'
-        )}
-      >
-        DRISHTI
-      </span>
+      {showText && (
+        <span className={cn(
+          'font-display font-bold tracking-tight',
+          textSize,
+          citizen ? 'text-citizen-text' : 'text-text-primary',
+        )}>
+          DRISHTI
+        </span>
+      )}
     </div>
   )
 }
