@@ -42,7 +42,6 @@ It ships as **two polished portals**:
 - **Live demo:** _added after deployment_ (Render free tier — backend may take ~50 s to wake on first hit).
 - **Demo video:** _added after recording._
 - **Model training results:** [`model-results/`](model-results/) — curves, confusion matrices & sample predictions for all 6 detectors.
-- **Deployment guide:** [`DEPLOY.md`](DEPLOY.md).
 
 ### Demo credentials
 
@@ -166,7 +165,6 @@ gridlock-round-2/
 ├── web/                     # Vite + React 19 SPA (officer + citizen portals)
 │   ├── src/  ├── vercel.json └── .env.example
 ├── model-results/           # training graphs + metrics for all 6 detectors
-├── DEPLOY.md                # cloud deployment + local-inference tunnel recipe
 └── README.md
 ```
 

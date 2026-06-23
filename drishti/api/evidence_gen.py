@@ -156,7 +156,10 @@ def generate(challan: dict) -> str:
     color = VCOLOR.get(vtype, (255, 167, 51))
     rng = random.Random(abs(hash(cid)))
 
-    pool = _HELMET if vtype in TWO_WHEELER else (_CARS or _HELMET)
+    # Prefer the helmet set for two-wheeler violations, but fall back to the real
+    # road-scene pool (bdd-scenes) if it isn't present — anything beats the plain
+    # placeholder frame.
+    pool = (_HELMET or _CARS) if vtype in TWO_WHEELER else (_CARS or _HELMET)
     name = f"{cid}_evidence.jpg"
     try:
         if not pool:
@@ -201,7 +204,7 @@ def generate_contest_photo(challan: dict) -> str:
     cid = challan.get("challan_id", "DRI")
     vtype = challan.get("violation", "no_helmet")
     rng = random.Random(abs(hash(cid + "contest")))
-    pool = _HELMET if vtype in TWO_WHEELER else (_CARS or _HELMET)
+    pool = (_HELMET or _CARS) if vtype in TWO_WHEELER else (_CARS or _HELMET)
     name = f"contest_{cid}_citizen.jpg"
     try:
         src = pool[rng.randrange(len(pool))]
