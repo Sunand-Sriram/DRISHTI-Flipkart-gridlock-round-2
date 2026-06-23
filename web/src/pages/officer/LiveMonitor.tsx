@@ -28,6 +28,20 @@ export default function LiveMonitor() {
 
   return (
     <div className="space-y-6">
+      {/* Local-inference notice — live AI runs locally only on the hosted demo */}
+      <div className="glass rounded-xl border border-amber/40 bg-amber/5 p-4 flex items-start gap-3">
+        <AlertTriangle className="h-5 w-5 text-amber shrink-0 mt-0.5" />
+        <div className="text-sm">
+          <p className="font-semibold text-amber">Live AI detection runs locally only on this hosted demo</p>
+          <p className="text-text-muted mt-1 leading-relaxed">
+            The six YOLO11m detectors need a GPU and ~2–4 GB RAM, which the free cloud tier can’t
+            provide — so <span className="text-text-secondary">video/image upload and live-camera analysis are disabled here</span>.
+            To see real-time detection, clone the repo and run it locally (see the README). Everything
+            else — challans, evidence, analytics, maps, emergencies and email — works on this deployment.
+          </p>
+        </div>
+      </div>
+
       {/* Emergency banner */}
       <AnimatePresence>
         {emergency && (

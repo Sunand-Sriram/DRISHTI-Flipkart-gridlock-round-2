@@ -1,4 +1,5 @@
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, useEffect } from 'react'
+import { API } from '@/lib/api'
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { AnimatePresence } from 'framer-motion'
 import { LenisProvider } from '@/components/effects/LenisProvider'
@@ -99,6 +100,14 @@ function AnimatedRoutes() {
 
 /* ── App root ───────────────────────────────────────────────────────────── */
 export default function App() {
+  // Warm up the backend on first load. On Render's free tier the API sleeps
+  // after ~15 min idle and takes ~50s to wake; pinging it while the visitor
+  // reads the landing page means data + evidence images are ready by the time
+  // they open a portal (avoids a cold-start burst of failed image requests).
+  useEffect(() => {
+    fetch(`${API}/`, { cache: 'no-store' }).catch(() => {})
+  }, [])
+
   return (
     <BrowserRouter>
       <LenisProvider>
